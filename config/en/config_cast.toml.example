@@ -94,11 +94,11 @@ name = "Casey Brooks"
 role = "assistant"
 model = "girl"
 hair_style = "medium_twintail"
-hair_color = "#2f7675"
-eye_color = "#0a3535"
-clothing_color = "#80afae"
+hair_color = "#ab9bcb"
+eye_color = "#312941"
+clothing_color = "#b3a381"
 accessory = [
-  { type = "pin", color = "#80afae", side = "left" },
+  { type = "pin", color = "#b3a381", side = "left" },
 ]
 desc = "Co-host. Takes whatever the host throws over, reads out the factual part properly, and hauls the conversation back when it has drifted too far. Genuinely delighted by trivia, and slightly too eager about it."
 # 既成の1声では出ない「若くて少し軽い」声を配合で作る例
