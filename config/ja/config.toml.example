@@ -1,0 +1,272 @@
+﻿# LLM Radio Daemon 設定ファイルの例（日本語版）
+# コピーして config/ja/config.toml として使うこと
+# （実ファイルは .gitignore 済み・リポジトリには含めない）
+#
+#   copy config\ja\config.toml.example config\ja\config.toml
+#
+# 言語ごとに config/<lang>/ に3点セット（config.toml / config_cast.toml /
+# config_content.toml）を置く。cast と content は config.toml と同じディレクトリから
+# 自動で読まれるので、切り替えは起動時のパス1つだけ:
+#
+#   go.bat ja        （= python -m llm_radio_daemon.main --config config/ja/config.toml）
+#   go.bat en        言語の指定は必須（既定は無い）
+#
+# 中の相対パス（kokoro_models/ content/ data/ など）はリポジトリルート基準。
+# リポジトリルートから起動すること（kokoro_models/ を ja/en で共有できる）。
+
+[locale]
+lang = "ja"              # 番組全体の言語。"ja" / "en"
+                         #   biography_reading の Wikipedia 言語版と、台本を書かせる言語
+                         #   （プロンプトに入る言語指示）を切り替える。
+                         #   英語版はこのファイルではなく config/en/ 一式を使うこと
+                         #   （config/en/config.toml.example をコピーする）
+
+[llm]
+host = "http://127.0.0.1:11434"
+model = "gemma4:e4b"    # 事前に `ollama pull gemma4:e4b` が必要。8GB級のGPUでも動く軽量モデル。
+                         # 16GB以上のGPUがあるなら "gemma4:31b" 等の大きいモデルに差し替えると
+                         # 台本の質が上がる（下の daily_mood の注記も参照）
+keep_alive = -1          # 常駐。これを外すと毎回ロード待ちが発生する（ollama のみ有効）
+temperature = 0.9
+timeout_sec = 300
+engine = "ollama"        # 推論エンジン。トーク内で名乗る表示ラベルにもなる
+                         #   ollama              … ネイティブ API（/api/chat）
+                         #   lmstudio / openai   … OpenAI 互換 API（/v1/chat/completions）
+                         #   unsloth             … Unsloth Studio。OpenAI 互換。localhost は Keyless
+                         #                         設定で鍵不要、そうでなければ api_key。thinking 抑止を自動送信
+                         #   llamacpp            … llama.cpp サーバ（llama-server）。
+                         #                         structured output と thinking 抑止を llama-server 向けに調整する
+#api_key = ""            # OpenAI 互換エンジンの API キー（Authorization: Bearer）。LM Studio /
+                         # llama.cpp は不要。Unsloth Studio は Settings → API → Keyless API access の
+                         # "Chat and inference" を ON にすれば localhost からは鍵不要。ON にしないなら
+                         # トークンを発行して api_key = "env:UNSLOTH_API_KEY"（環境変数名。直書きも可）。
+placement = "auto"       # モデルの実行場所。トークで「このパソコンの中で動いている」と
+                         # 名乗るかどうかがここで決まる。
+                         #   auto  … 起動時に判定（ollama は /api/show でモデルの実体が
+                         #           手元にあるかを見る。gpt-oss:120b-cloud のような
+                         #           クラウドモデルは localhost 経由でも cloud と判定される）
+                         #   local … このパソコンの中で動いていることにする
+                         #   cloud … クラウドで動いていることにする
+                         # 判定できなかった場合、トークは実行場所に一切触れない。
+                         # content/filler_topics.<lang>.txt の @local / @cloud タグもこれで切り替わる。
+#daily_mood = true       # 天気・季節・曜日から日替わりの「キャラごとの気分」を1日1回作り、
+                         # 全コーナーの台本へ薄く効かせる（持ちネタキャラバリエーション §2）。
+                         # 既定 off。roster の注記を「読み上げるセリフ」として扱う小型モデル
+                         # （gemma3n e2b/e4b 級）では戯画化・話題の脱線を招くため、
+                         # 20〜30b 級モデルで使うときだけ true にする。生成物は data/mood_<lang>.json。
+#speech_reading_pass = true  # 字幕とは別に、TTS用の読み上げテキストをLLMでもう1回生成する
+                         # （VOICEVOXの漢字誤読対策）。字幕は常に生成された原文のまま、
+                         # TTSだけ読み間違えやすい漢字を書き換えた版を読む。既定 off。
+                         # 上の model へもう1往復LLMを呼ぶだけなので、有効にすると台本生成が
+                         # その分遅くなる（実測: 20行の台本で+15秒前後）。大きめのモデルを
+                         # 遅いGPUで動かしていると台本1本あたりの待ち時間が伸びて体感に響くので、
+                         # ハイエンドGPUで手元のモデルに余裕があるときだけ試すのを推奨。
+                         # 現状メイン雑談コーナー（news/talk等）のみ対応。
+                         # 実測: gemma4:e2b（2B）級は「一部の語だけ直す」選択的編集ができず、
+                         # ほぼ全文をかな化した上に誤変換もする（1行ずつ投げても同じ症状）。
+#num_ctx = 16384         # コンテキスト長（入力＋生成トークンの上限。ollama のみ有効）。省略時は
+                         # ollama 既定（環境変数 OLLAMA_CONTEXT_LENGTH。未設定なら 4096）。
+                         # ネタ本文（最大2000字）＋ロースター＋定型文で入力が数千トークンになり、
+                         # さらに 10〜20 行の JSON 台本を書かせるので、4096 だと生成が途中で切れて
+                         # 台本が没になり（→フィラー送り）やすい。16GB 級なら 16384、8GB 級の
+                         # dense モデルなら 8192 を目安に。実測は scripts/bench_corners.py。
+#num_predict = 4096      # 1 生成のトークン上限。num_ctx を絞ったときは
+                         # 「入力 ＋ num_predict ≦ num_ctx」に収まる値を合わせて指定する。
+#log_prompts = true      # LLM に送っている最終プロンプトを丸ごとログ（logs/、[log] level 参照）へ
+                         # 吐くデバッグ用スイッチ。既定 off。コーナーによっては記事本文込みで
+                         # 数千字になるので、覗きたいときだけ一時的に true にして戻すこと。
+#log_responses = true    # LLM から返ってきた生の応答を丸ごとログへ吐くデバッグ用スイッチ。
+                         # log_prompts と対で使うと入出力ペアを追える。既定 off。
+#log_schema = true       # structured output で使う JSON Schema をログへ吐くデバッグ用スイッチ。
+                         # スキーマはプロンプト文字列ではなく別パラメータ（ollama: format /
+                         # openai・unsloth: response_format.json_schema / llamacpp:
+                         # response_format.schema）として送っているため、log_prompts を true に
+                         # してもログには出てこない。中身を確認したいときだけ一時的に true にする。
+                         # 既定 off。
+
+# LM Studio を使う場合の例（サーバを起動し JIT ロードを有効に）:
+#   engine = "lmstudio"
+#   host   = "http://127.0.0.1:1234"   # /v1 は付けない
+#   model  = "qwen2.5-14b-instruct"    # LM Studio 上のモデル識別子
+#   timeout_sec = 300
+# llama.cpp（llama-server）を使う場合の例:
+#   engine = "llamacpp"
+#   host   = "http://127.0.0.1:8080"   # llama-server の既定ポート。/v1 は付けない
+#   model  = "qwen3"                   # llama-server は単一モデルなので任意の識別子でよい
+#   timeout_sec = 300
+#   起動例: llama-server -m model.gguf -c 8192 --jinja   （--jinja はチャットテンプレート適用に必要）
+# Unsloth Studio を使う場合の例（`unsloth studio` でサーバを起動し、UI でモデルをロード）:
+#   engine  = "unsloth"
+#   host    = "http://127.0.0.1:8888"        # 既定ポート。/v1 は付けない
+#   model   = "lmstudio-community/gemma-4-12B-it-GGUF"  # /v1/models の "id"（":Q4_K_M" は付けない）
+#   timeout_sec = 300
+#   Settings → API → Keyless API access の "Chat and inference" を ON にすれば localhost は鍵不要。
+#   ON にしない場合はトークンを発行して   api_key = "env:UNSLOTH_API_KEY"   を足す。
+#   ★ UI のモデルロード設定で context length を 8192 以上にすること（4096 だと各コーナーの
+#     台本が途中で切れる）。thinking の抑止は daemon 側が自動で送るので設定不要。
+#   埋め込み（[embedding]）も Unsloth の /v1/embeddings で叩けるが、使うモデルは Unsloth の
+#   Settings 側で固定・[embedding] model は無視され、既定は英語専用の bge-small。日本語放送では
+#   [embedding] engine = "ollama"（nomic-embed-text）のままにするのを推奨（起動時に warning が出る）。
+
+[embedding]
+enabled = true
+host = "http://127.0.0.1:11434"
+model = "nomic-embed-text"  # 事前に `ollama pull nomic-embed-text` が必要
+keep_alive = -1               # 常駐。外すとアイドル時にアンロードされ次回呼び出しがロード待ちになる
+similarity_threshold = 0.85  # これを超えたら「もう話した内容とほぼ同じ」として破棄
+max_recent = 1000            # 直近何件のトピックと比較するか
+timeout_sec = 10
+engine = "ollama"            # [llm] とは独立に選べる（ollama / lmstudio / llamacpp / openai）
+                             #   lmstudio 例: engine = "lmstudio" / host = "http://127.0.0.1:1234"
+                             #   llamacpp 例: engine = "llamacpp" / host = "http://127.0.0.1:8081"
+                             #     （埋め込み用に llama-server をもう一つ --embeddings 付きで起動する）
+                             #   unsloth の /v1/embeddings は使えるがモデルが Unsloth 側設定で固定・
+                             #   既定 bge-small（英語専用）。日本語は ollama 推奨（起動時 warning あり）
+#api_key = ""                # OpenAI 互換の埋め込みサーバに鍵が要る場合のみ（[llm] api_key と同じ書式）
+
+[tts]
+backend = "voicevox"     # "voicevox"（日本語）/ "kokoro"（英語）
+
+# --- backend = "voicevox" のとき使う ---
+host = "http://127.0.0.1:50021"
+timeout_sec = 30
+# 各出演者の声は config_cast.toml の [[cast]] の voicevox_speaker_name（VOICEVOX のキャラ名）で指定する。
+# 話者IDは起動時に VOICEVOX ENGINE の /speakers から自動解決する（数値は書かない）。
+
+# --- backend = "kokoro"（英語）のとき使う ---
+# 追加の依存が要る:
+#   pip install -r requirements-en.txt
+#   python -m spacy download en_core_web_sm
+#
+# model_dir = "kokoro_models"
+#   モデル（kokoro-v1.0.onnx 310MB / voices-v1.0.bin 27MB / config.json）の置き場。
+#   無ければ初回起動時に自動取得する（青空文庫と同じ lazy fetch）。
+#
+# threads = 2
+#   onnxruntime のスレッド数。0 で onnxruntime 任せ。
+#   実測（i7-7700K 4コア・アイドル時）で 2 スレッド 2.0倍速 / 4 スレッド 2.5倍速。
+#   全コアを与えると LLM のサンプリングと 3D 表示を食うので既定は控えめの 2。
+#   量子化モデルは AVX-512 VNNI の無い CPU では fp32 より遅くなるので使っていない。
+#   `python -m scripts.check_kokoro_voices --config config/en/config.toml` で実効 RTF を確認できる。
+#
+# lexicon_file = "content/lexicon.en.txt"
+#   読みを固定したい語の辞書（1行 "単語<TAB>IPA"）。省略・不在なら何もしない。
+#   辞書に無い語は推定で読まれる（破綻はしないが正しいとは限らない）ので、
+#   番組の看板になる語だけここで押さえる。放送中、辞書外の語は WARNING に出る。
+#
+# 各出演者の声は config_cast.toml の [[cast]] の kokoro_voice /
+# [[cast.kokoro_styles]] で指定する（config/en/config_cast.toml.example を参照）。
+
+[audio]
+samplerate = 48000
+device = ""              # 空なら既定デバイス
+blocksize = 1024
+duck_db = -12.0
+duck_attack_ms = 150
+duck_release_ms = 500
+duck_hold_ms = 300
+#music_enabled = false   # ネットラジオのBGM（[[streams]]）を一切流さない。トーク音声だけになる。
+                         # YouTube収録など、配信元の曲を映像に含めたくないときに true→false。
+                         # song_talk（曲紹介トーク）も曲名が来なくなるので自然に出なくなる。
+                         # 既定 true（曲あり）。
+
+[display]
+enabled = true           # 3D表示ウィンドウを出す。音声のみで使いたい場合は false に
+fps_limit = 30
+font = "C:/Windows/Fonts/meiryo.ttc"  # 字幕用フォント（既定フォントは日本語グリフを含まないため必須）
+remember_window = true   # 終了時のウィンドウ位置・サイズを覚え、次回起動時に復元する
+                         #   復元されるのは通常サイズのみ。最大化状態は Panda3D の API に無いため復元しない
+                         #   Linux(Wayland) は位置指定が仕様上無視されるためサイズだけ復元される
+                         #   モニタ構成が変わって画面外になる位置は捨てて中央配置に戻る
+window_state_path = "data/window_state.json"  # 上の保存先
+subtitle_wrap = 49       # 字幕1行あたりの全角文字数のめやす。画面右端で切れるなら減らす
+subtitle_max_lines = 10  # 字幕の最大表示行数。あふれた分は末尾を … で丸める
+                         #   朗読チャンク（約 400〜500 字）を丸ごと出せる枠。通常トークは必要な行数しか描かない
+subtitle_idle_clear_sec = 10.0  # 誰も喋っていない状態がこの秒数続いたら最後の字幕を消す
+background = "grid+dust" # 背景演出の既定値。[[content]] 側の background で上書きできる
+                         #   grid     … 奥から手前へ流れるワイヤーフレームの格子床
+                         #   dust     … ゆっくり周回する微粒子（星屑）
+                         #   logs     … daemon 自身のログを薄く流す
+                         #   coderain … Matrix 風の落下文字
+                         #   "+" で重ねられる（"grid+dust"）。"none" で背景なし
+                         #   いずれも暗く低コントラストで、24時間つけっぱなしでも疲れない濃さにしてある
+
+# 番組編成（コンテンツ、[[content]]）は同じディレクトリの config_content.toml に分離した。
+# コピーして使うこと:
+#   copy config\ja\config_content.toml.example config\ja\config_content.toml
+# こちらは必須（デフォルトは無く、無ければ起動時にエラーになる）。
+
+[filler]
+enabled = true
+idle_threshold_sec = 20.0  # script_queue がこの秒数空のままならフィラートークを投入する
+check_interval_sec = 2.0
+# お題（フィラー雑談の種）自体は、台本を書くのと同じ LLM に考えさせる（固定リストは無い。
+# 失敗／タイムアウト時はお題なしで進める＝時刻・曲・楽屋ネタのみ）。
+
+[weather]
+# 現在の天気。フィラー雑談の「状況」と、お天気コーナー（config_content.toml の
+# [[content]] type = "weather"）の両方がここを見る。取得先は Open-Meteo
+# （https://open-meteo.com/ ）で、APIキーは要らない。
+#
+# ここに書く場所は「リスナーの現在地」ではなく「この番組のスタジオがある場所」という
+# 番組設定。だから IP や OS から自動判定はしない（自動判定は VPN で嘘になるし、
+# 番組の建て付けとしても筋が悪い）。書かなければ天気には一切触れない。
+enabled = true           # true にするなら下の3つが必須
+location_name = "東京"   # トークで呼ぶ地名。緯度経度は読み上げられないのでこれが要る
+latitude = 35.6895       # 緯度（-90〜90）。地名で検索するなら
+longitude = 139.6917     # 経度（-180〜180）  https://open-meteo.com/en/docs で引ける
+refresh_sec = 1800       # 取得間隔。天気は変化が遅いので取りに行きすぎない（既定30分）
+timeout_sec = 5          # 放送スレッドを止めないよう短く。失敗しても黙って天気の話をやめるだけ
+# 取れなかったとき・値が3時間以上古くなったときは、天気に触れさせない
+# （[llm] placement = "unknown" と同じ扱い。推測で「たぶん晴れ」と言わせない）。
+# content/filler_topics.<lang>.txt の @rain / @snow / @hot などのタグもこれで切り替わる。
+
+# 出演者ロースター（ひな壇トーク）は同じディレクトリの config_cast.toml（[[cast]]）に分離した。
+# コピーして使うこと:
+#   copy config\ja\config_cast.toml.example config\ja\config_cast.toml
+# 用意しない（または [[cast]] が空）と起動時に即エラーで終了する。
+
+[db]
+path = "data/llm_radio_daemon.ja.db"
+rebroadcast_after_days = 7
+
+[log]
+dir = "logs"
+level = "INFO"
+
+# 開発・実験用。通常運用ではコメントアウトのままにしておく。
+#[debug]
+# 出演者をこの id 並びに固定する。空 or 未指定なら通常どおり毎回ランダム抽選。
+# 設定すると全トーク（ひな壇・フィラー・読書コーナーの感想役など）が毎回この面子・
+# この順で出る。host_id や進行役ガードより優先。先頭が進行役／朗読役になる。
+# キャラ同士の関係性（掛け合い）を煮詰めたいときに、顔ぶれを固定して観察する用途。
+# pinned_cast_ids = ["rin", "aoi", "tsubasa", "shizuka", "naomi", "akane", "toko", "noa", "megumi"]
+# pinned_cast_ids = ["manatu", "sato", "nozomi", "kana", "kiyo", "yuika", "mei", "os", "llm-daemon"]
+
+# 全 cast の「今回の角度」を config_cast.toml の angle_variants のこのインデックスに固定する。
+# 未指定＝通常どおりトピック毎にランダム選択。範囲外の値は「角度なし」扱い。再現性のあるデバッグ用。
+#pin_angle_index = 0
+
+# ネットラジオ局。何局でも並べてよい。
+#   id   : [[content]] の stream から参照する名前（この設定ファイル内で一意）
+#   url  : ストリームのURL
+#   name : 画面表示用の名前（任意。省略すると id をそのまま表示する）
+#
+# 先頭のエントリが「既定局」で、stream を書いていないコーナーではこれが流れる。
+# 公式に配信条件を公開している局のみを使うこと（例: SomaFM https://somafm.com/ ）。
+# radiko 等、地域認証を要するものはデフォルトから外す。
+# URL は各局のページで確認すること（SomaFM は https://somafm.com/listen/ ）。
+[[streams]]
+id = "groovesalad"
+name = "SomaFM Groove Salad"
+url = "http://ice1.somafm.com/groovesalad-128-mp3"
+
+[[streams]]
+id = "dronezone"
+name = "SomaFM Drone Zone"
+url = "http://ice1.somafm.com/dronezone-128-mp3"
+
+[[streams]]
+id = "spacestation"
+name = "SomaFM Space Station Soma"
+url = "http://ice1.somafm.com/spacestation-128-mp3"

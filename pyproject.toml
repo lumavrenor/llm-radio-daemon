@@ -1,0 +1,41 @@
+[project]
+name = "llm-radio-daemon"
+version = "0.1.0"
+description = "24時間喋り続けるローカルLLMラジオ番組（v1: 3Dなし・CLI）"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "sounddevice>=0.4.6",
+    "requests>=2.31",
+    "ursina>=8.3.0",
+    "feedparser>=6.0.14",
+]
+
+[project.optional-dependencies]
+# 英語版（[tts] backend = "kokoro"）で使う。日本語版は VOICEVOX を別プロセスで
+# 立てるだけなので、この一式は不要。約50パッケージ増えるので分けてある。
+#   pip install -e ".[en]"
+en = [
+    "onnxruntime>=1.20,<2",
+    "misaki>=0.7,<1",          # Apache-2.0。Kokoro の基準 G2P
+    "spacy>=3.8,<4",           # misaki の英語 G2P が品詞判別に使う
+    # num2words は misaki が数字の読み上げに使う（module レベル import なので必須）。
+    # LGPL-2.1 で、ツリー中で唯一の非 MIT/Apache。
+    # 0.5.15 / 0.5.16 はメンテナのフィッシング被害でマルウェアが混入した版
+    # （GHSA-jxr6-qrxx-2ph2 / PYSEC-2025-72、2025-07-31）。PyPI からは削除済みだが、
+    # ミラーや古いキャッシュを掴まないよう明示的に除外しておく。
+    "num2words>=0.5.14,!=0.5.15,!=0.5.16,<0.6",
+    # 辞書外語（固有名詞・モデル名）のフォールバック G2P。Apache-2.0、torch 不要。
+    # これが無いと固有名詞を含む行が例外になり無音になる（tts/g2p_fallback.py 参照）。
+    "g2p_en>=2.1,<3",
+]
+
+[project.scripts]
+llm-radio-daemon = "llm_radio_daemon.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["llm_radio_daemon*"]

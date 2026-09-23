@@ -1,0 +1,58 @@
+Copyright (c) 2026 lumavrenor. All rights reserved.
+
+This software is NOT open source. The following terms apply.
+
+1. Permitted use
+   You may download, install and run this software, and modify it for your
+   own use, for personal, non-commercial purposes (for example, running it at
+   home for your own enjoyment).
+
+2. Uses that are not permitted
+   - Publishing, distributing or sharing copies of this software, in whole or
+     in part, whether modified or unmodified (including publishing a modified
+     fork).
+   - Any commercial use, including use by or on behalf of a company, use in a
+     paid product or service, or use to generate revenue.
+   The author does not respond to individual requests for permission.
+
+3. No warranty
+   This software is provided "AS IS", without warranty of any kind, express or
+   implied. In no event shall the author be liable for any claim, damages or
+   other liability arising from, out of or in connection with this software or
+   its use.
+
+4. Third-party components
+   External services (Ollama, VOICEVOX, topic-source APIs, internet radio
+   stations, etc.) and the third-party libraries, models and binaries this
+   software uses are subject to their own licenses and terms of use, which you
+   must check and follow separately. See the Credits section of README.md.
+
+----------------------------------------------------------------------------
+
+著作権 (c) 2026 lumavrenor. All rights reserved.
+
+本ソフトウェアはオープンソースではありません。以下の条件で利用できます。
+
+1. 許可される利用
+   個人が非商用の目的（自宅で自分で動かして楽しむ等）で、本ソフトウェアを
+   ダウンロード・インストール・実行し、自分で使うために改変することは自由です。
+
+2. 認めていない利用
+   - 本ソフトウェアの全部または一部の複製物の公開・配布・共有
+     （改変の有無を問いません。改変版フォークの公開を含みます）
+   - 商用利用（企業での利用、有償の製品・サービスでの利用、収益を目的とした
+     利用を含みます）
+   個別の許諾の依頼には応じていません。
+
+3. 無保証
+   本ソフトウェアは「現状のまま」提供され、明示・黙示を問わず一切の保証は
+   ありません。本ソフトウェアまたはその利用によって生じた損害やトラブルに
+   ついて、作者は一切の責任を負いません。
+
+4. 第三者のコンポーネント
+   依存する外部サービス（Ollama、VOICEVOX、各種ネタ源API、ネットラジオ局など）
+   および本ソフトウェアが使用するライブラリ・モデル・バイナリには、それぞれ
+   固有のライセンス・利用規約があります。各自で確認し、従ってください。
+   README.md のクレジット欄を参照してください。
+
+英語版と日本語版の間に相違がある場合は、日本語版が優先します。

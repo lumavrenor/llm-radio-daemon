@@ -1,0 +1,291 @@
+﻿# LLM Radio Daemon example config (English broadcast).
+# Copy it to config/en/config.toml (the real file is gitignored, not committed):
+#
+#   copy config\en\config.toml.example config\en\config.toml
+#
+# Each language keeps its own set of three files under config/<lang>/
+# (config.toml / config_cast.toml / config_content.toml). cast and content
+# are loaded automatically from the same directory as config.toml, so
+# switching language is just one path at startup:
+#
+#   go.bat en        (= python -m llm_radio_daemon.main --config config/en/config.toml)
+#   go.bat ja        a language must always be given (there is no default)
+#
+# Relative paths inside (kokoro_models/ content/ data/ etc.) are resolved
+# from the repo root, so start the daemon from there (this lets kokoro_models/
+# be shared between ja and en).
+#
+# The English broadcast needs extra dependencies:
+#   pip install -r requirements-en.txt
+#   python -m spacy download en_core_web_sm
+# See docs/handoff-en-tts.md for background and pitfalls.
+
+[locale]
+lang = "en"              # Broadcast language: "ja" / "en".
+                         #   Selects the Wikipedia language edition for
+                         #   biography_reading and the language the LLM is
+                         #   told to write the script in.
+                         #   For the Japanese broadcast use config/ja/ instead
+                         #   of this file.
+
+[llm]
+host = "http://127.0.0.1:11434"
+model = "gemma4:e4b"    # Requires `ollama pull gemma4:e4b` beforehand. A lightweight model that
+                         # runs on 8GB-class GPUs. With 16GB+ VRAM, swap in a bigger model such
+                         # as "gemma4:31b" for better scripts (see the daily_mood note below).
+keep_alive = -1          # Keep the model resident (ollama only). Without
+                         # this every request waits for a fresh load.
+temperature = 0.9
+timeout_sec = 300
+engine = "ollama"        # Inference engine. Also becomes the label the cast
+                         # uses on air when they name-drop it.
+                         #   ollama              ... native API (/api/chat)
+                         #   lmstudio / openai   ... OpenAI-compatible API (/v1/chat/completions)
+                         #   unsloth             ... Unsloth Studio. OpenAI-compatible. No key needed
+                         #                         on localhost with Keyless enabled, otherwise api_key.
+                         #                         Thinking-mode suppression is sent automatically.
+                         #   llamacpp            ... llama.cpp server (llama-server). Structured
+                         #                         output and thinking suppression are tuned for it.
+#api_key = ""            # API key for OpenAI-compatible engines (Authorization: Bearer).
+                         # Not needed for LM Studio / llama.cpp. For Unsloth Studio, turn on
+                         # Settings -> API -> Keyless API access -> "Chat and inference" to skip
+                         # keys on localhost; otherwise issue a token and set
+                         # api_key = "env:UNSLOTH_API_KEY" (an environment variable name, or write
+                         # the token directly).
+placement = "auto"       # Where the model is said to run (auto / local / cloud). Controls
+                         # whether the cast claims to be "running on this machine" on air.
+                         # auto detects it at startup; a cloud model such as gpt-oss:120b-cloud
+                         # is reported as cloud even when reached through localhost.
+                         # If it can't be determined, the cast never mentions where it runs.
+                         # Also switches the @local / @cloud tags in content/filler_topics.<lang>.txt.
+#daily_mood = true       # Once a day, derive a per-character "mood" from the weather, season
+                         # and day of week, and lightly flavor every corner's script with it.
+                         # Default off: on small models (gemma3n e2b/e4b class) it tends to make
+                         # them read the roster's mood note aloud and wander off topic, so only
+                         # enable it with 20-30b class models. Written to data/mood_<lang>.json.
+#speech_reading_pass = true  # Generate a separate TTS reading via the LLM, on top of the
+                         # subtitle text (mainly useful for backend = "voicevox" / Japanese,
+                         # where kanji can be read wrong). The subtitle always shows the
+                         # original generated text; only the audio uses the rewritten version.
+                         # Default off. This is one extra round trip to the model above, so
+                         # turning it on makes script generation slower across the board
+                         # (measured: +15s or so on a 20-line script). Running a large model
+                         # on a slow GPU already makes each script take a while, and this
+                         # pass adds directly on top of that, so only turn it on if your GPU
+                         # has headroom to spare. Currently only wired up for the main talk
+                         # corner (script/ollama_client.py).
+                         # Measured: 2B-class models (gemma4:e2b) can't do this kind of
+                         # selective edit at all - they rewrite nearly the whole line into
+                         # kana and introduce new misreadings, even one line at a time.
+#log_prompts = true      # Debug switch: dump the full final prompt sent to the LLM into the log
+                         # (logs/, see [log] level). Default off - some corners run to a few
+                         # thousand characters once article bodies are folded in. Flip it on
+                         # only when you want to peek, then back off.
+#log_responses = true    # Debug switch: dump the raw response the LLM sends back into the log.
+                         # Pair it with log_prompts to see input/output together. Default off.
+#log_schema = true       # Debug switch: dump the JSON Schema used for structured output into the
+                         # log. The schema is sent as a separate request field (ollama: format /
+                         # openai & unsloth: response_format.json_schema / llamacpp:
+                         # response_format.schema), not as prompt text, so it never shows up even
+                         # with log_prompts on. Flip it on only when you want to peek. Default off.
+# See config/en/config_cast.toml.example for how each cast member's voice is set.
+# Example for LM Studio (start its server with JIT loading enabled):
+#   engine = "lmstudio"
+#   host   = "http://127.0.0.1:1234"   # no /v1 suffix
+#   model  = "qwen2.5-14b-instruct"    # model id as shown in LM Studio
+#   timeout_sec = 300
+# Example for llama.cpp (llama-server):
+#   engine = "llamacpp"
+#   host   = "http://127.0.0.1:8080"   # llama-server's default port, no /v1 suffix
+#   model  = "qwen3"                   # llama-server serves one model, so any label works
+#   timeout_sec = 300
+#   start with: llama-server -m model.gguf -c 8192 --jinja   (--jinja is required for chat templates)
+# Example for Unsloth Studio (run `unsloth studio` and load a model in its UI):
+#   engine  = "unsloth"
+#   host    = "http://127.0.0.1:8888"        # default port, no /v1 suffix
+#   model   = "lmstudio-community/gemma-4-12B-it-GGUF"  # the "id" from /v1/models (no ":Q4_K_M" suffix)
+#   timeout_sec = 300
+#   Turn on Settings -> API -> Keyless API access -> "Chat and inference" to skip keys on localhost;
+#   otherwise issue a token and add   api_key = "env:UNSLOTH_API_KEY"
+#   Set context length to 8192 or more in the UI's model-load settings (4096 cuts corner
+#   scripts off mid-generation). Thinking-mode suppression is sent automatically by the daemon.
+#   [embedding] can also use Unsloth's /v1/embeddings — the model is fixed on Unsloth's side
+#   (defaults to bge-small-en), so engine = "unsloth" works fine for an English broadcast.
+
+[embedding]
+enabled = true
+host = "http://127.0.0.1:11434"
+model = "nomic-embed-text"  # requires `ollama pull nomic-embed-text` beforehand
+keep_alive = -1               # Keep resident; otherwise it unloads when idle and the next
+                               # call waits for a reload.
+similarity_threshold = 0.85  # Above this, a topic is treated as a near-duplicate and dropped.
+max_recent = 1000            # How many recent topics to compare against.
+timeout_sec = 10
+engine = "ollama"            # Independent of [llm] (ollama / lmstudio / llamacpp / openai).
+                             #   lmstudio example: engine = "lmstudio" / host = "http://127.0.0.1:1234"
+                             #   llamacpp example: engine = "llamacpp" / host = "http://127.0.0.1:8081"
+                             #     (run a second llama-server with --embeddings for this)
+                             #   unsloth also works (/v1/embeddings; model is fixed on Unsloth's
+                             #   side, default bge-small-en, fine for English broadcasts)
+#api_key = ""                # Only if the OpenAI-compatible embedding server requires a key
+                             # (same format as [llm] api_key).
+
+[tts]
+backend = "kokoro"       # "voicevox" (Japanese) / "kokoro" (English)
+
+# --- used when backend = "kokoro" ---
+model_dir = "kokoro_models"
+#   Where the model files live (kokoro-v1.0.onnx 310MB / voices-v1.0.bin 27MB / config.json).
+#   Fetched automatically on first run if missing (same lazy-fetch approach as the Aozora corpus).
+threads = 2
+#   onnxruntime thread count. 0 lets onnxruntime decide.
+#   Measured (i7-7700K, 4 cores, idle) at 2.0x realtime with 2 threads / 2.5x with 4 threads.
+#   Kept conservative at 2 by default since giving it all cores competes with LLM sampling
+#   and the 3D display. Quantized models are not used here because they run slower than
+#   fp32 on CPUs without AVX-512 VNNI.
+#   Check the actual RTF with: `python -m scripts.check_kokoro_voices --config config/en/config.toml`
+lexicon_file = "content/lexicon.en.txt"
+#   Dictionary for words whose pronunciation you want to pin (one "word<TAB>IPA" per line).
+#   Optional; if missing, nothing is overridden. Words not in the dictionary get an estimated
+#   pronunciation (usually fine but not guaranteed correct) — use this for words the show
+#   says a lot (model names, recurring artists) that need to be right. Words missing from the
+#   dictionary are logged as WARNING while on air.
+#
+# Each cast member's voice is set via config_cast.toml's [[cast]] kokoro_voice /
+# [[cast.kokoro_styles]] (see config/en/config_cast.toml.example).
+# Check it with: python -m scripts.check_kokoro_voices --config config/en/config.toml
+
+# --- used when backend = "voicevox" (unused in the English broadcast) ---
+# host = "http://127.0.0.1:50021"
+# timeout_sec = 30
+
+[audio]
+samplerate = 48000
+device = ""              # empty = default device
+blocksize = 1024
+duck_db = -12.0
+duck_attack_ms = 150
+duck_release_ms = 500
+duck_hold_ms = 300
+#music_enabled = false   # Don't play the internet radio BGM ([[streams]]) at all; talk-only audio.
+                         # Useful when recording for YouTube and you don't want the station's
+                         # music in the video. song_talk (song intro chatter) also stops
+                         # happening naturally, since no song titles ever arrive.
+                         # Default true (music on).
+
+[display]
+enabled = true           # Show the 3D display window. Set false for audio-only use.
+fps_limit = 30
+font = "C:/Windows/Fonts/meiryo.ttc"  # subtitle font. The default font is enough for
+                         #   English alone, but pointing at one with Japanese glyphs is safer since
+                         #   logs or song titles can contain Japanese.
+remember_window = true   # Remember window position/size on exit and restore it next launch.
+                         #   Only the non-maximized size is restored (Panda3D has no API for maximized
+                         #   state). On Linux/Wayland only the size is restored since window placement
+                         #   is ignored by the compositor. A position that would land off-screen after
+                         #   a monitor layout change is discarded in favor of centering.
+window_state_path = "data/window_state.json"  # where the above is saved
+subtitle_wrap = 90       # Rough character count per subtitle line before wrapping.
+                         #   Lower it if lines run off the right edge.
+                         #   Japanese (full-width) wraps around 49; English fits about double that (default 90).
+                         #   _wrap_subtitle() slices at a fixed length without looking for whitespace,
+                         #   so English words can be cut mid-word.
+subtitle_max_lines = 10  # Max subtitle lines shown; overflow is truncated with a trailing ….
+subtitle_idle_clear_sec = 10.0  # Clear the last subtitle after this many seconds of nobody talking.
+                         #   Sized to fit a whole reading-corner chunk (roughly 400-500 characters);
+                         #   normal talk only draws as many lines as it needs.
+background = "grid+dust" # Default background effect; a [[content]] entry's own
+                         # background overrides this.
+                         #   grid     ... wireframe floor grid scrolling from back to front
+                         #   dust     ... slow-drifting particles (starfield)
+                         #   logs     ... the daemon's own logs, faintly overlaid
+                         #   coderain ... Matrix-style falling characters
+                         #   combine with "+" (e.g. "grid+dust"); "none" for no background
+                         #   All of these are kept dark and low-contrast so they're easy on the
+                         #   eyes when left running 24 hours a day.
+
+# Program schedule ([[content]]) lives in its own file, config_content.toml, in the
+# same directory. Copy it into place:
+#   copy config\en\config_content.toml.example config\en\config_content.toml
+# This one is required — there is no default, and startup fails without it.
+
+[filler]
+enabled = true
+idle_threshold_sec = 20.0  # Insert filler chat once script_queue has been empty this many seconds.
+check_interval_sec = 2.0
+# The filler "topic" itself is always made up by the same LLM that writes the scripts,
+# instead of being drawn from a fixed list (no config option for that anymore - a fixed list
+# is finite no matter how many lines you add, and every model gets the same starting point,
+# whereas this way the topic quality reflects the model too). If it fails or times out, filler
+# just proceeds without a topic (time, song, backstage banter only - not an error).
+
+[weather]
+# Current weather. Both filler chat's sense of "what's going on right now" and the weather
+# corner ([[content]] type = "weather" in config_content.toml) read this. Fetched from
+# Open-Meteo (https://open-meteo.com/), no API key required.
+#
+# This location is "where the studio is", not "where the listener is" — it's a setting for
+# the show, so it is never auto-detected from IP or OS. Leave it disabled and weather is
+# never mentioned at all.
+enabled = true                # true requires the three fields below
+location_name = "San Francisco"  # place name spoken on air; write it in the broadcast language
+latitude = 37.7749             # latitude (-90 to 90); look up coordinates at
+longitude = -122.4194          # longitude (-180 to 180)  https://open-meteo.com/en/docs
+refresh_sec = 1800             # fetch interval; weather changes slowly, so don't poll too often (default 30 min)
+timeout_sec = 5                # kept short so it never blocks the broadcast thread; a failure just skips weather talk
+# Weather is left unmentioned when the fetch fails or the cached value is more than 3 hours old
+# (same treatment as [llm] placement = "unknown").
+# Also switches the @rain / @snow / @hot etc. tags in content/filler_topics.en.txt.
+
+# The cast roster (panel talk) lives in its own file, config_cast.toml, in the same directory.
+# Copy it into place:
+#   copy config\en\config_cast.toml.example config\en\config_cast.toml
+# Startup fails immediately if it's missing or has no [[cast]] entries.
+
+[db]
+path = "data/llm_radio_daemon.en.db" # kept separate from the Japanese broadcast so duplicate
+                                     #   detection and rebroadcast history don't mix
+                                     #   (schema uses CREATE TABLE IF NOT EXISTS, so it's created
+                                     #   automatically if missing)
+rebroadcast_after_days = 7
+
+[log]
+dir = "logs"
+level = "INFO"
+
+# For development/experiments. Leave commented out for normal use.
+#[debug]
+# Pin the cast to this exact list of ids. Empty or unset = the usual random draw every time.
+# When set, every talk segment (panel, filler, the reading corner's commentary role, etc.) uses
+# this exact lineup and order every time, overriding host_id and the host-priority rule — the
+# first id becomes the host/reader. Useful for observing a fixed lineup's chemistry.
+#pinned_cast_ids = ["os", "jonah", "tess"]
+
+# Pin every cast member's "angle" this run to this index into their config_cast.toml
+# angle_variants. Unset = the normal per-topic random pick; an out-of-range value means "no angle".
+# Useful for reproducible debugging.
+#pin_angle_index = 0
+
+# Internet radio stations. List as many as you like.
+#   id   : the name [[content]] entries reference via stream (must be unique in this file)
+#   url  : the stream URL
+#   name : display name (optional; defaults to id)
+#
+# The first entry is the default station, used by any corner that doesn't set stream.
+# Only use stations that publicly state their streaming is open to use (e.g. SomaFM,
+# https://somafm.com/). Leave out anything requiring regional authentication (e.g. radiko).
+# Check each station's own page for its URL (SomaFM: https://somafm.com/listen/).
+[[streams]]
+id = "groovesalad"
+name = "SomaFM Groove Salad"
+url = "http://ice1.somafm.com/groovesalad-128-mp3"
+
+[[streams]]
+id = "dronezone"
+name = "SomaFM Drone Zone"
+url = "http://ice1.somafm.com/dronezone-128-mp3"
+
+[[streams]]
+id = "spacestation"
+name = "SomaFM Space Station Soma"
+url = "http://ice1.somafm.com/spacestation-128-mp3"

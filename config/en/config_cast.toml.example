@@ -1,0 +1,493 @@
+﻿# Example cast roster for the English broadcast ([tts] backend = "kokoro").
+# Copy it to config/en/config_cast.toml (the real file is gitignored, not committed):
+#
+#   copy config\en\config_cast.toml.example config\en\config_cast.toml
+#
+# Loaded automatically from the config.toml in the same directory.
+#
+# Keys shared with the Japanese roster (id / role / model / hair style & color /
+# accessory / angle_variants / the {model}/{engine}/{os} placeholder syntax) work
+# identically here — see config/ja/config_cast.toml.example for the full reference.
+# This file only documents what's specific to the English roster: voice setup
+# (kokoro_voice / kokoro_styles) below, and the character list itself.
+#
+# Colors (hair_color / eye_color / clothing_color) sit on the same OKLCH tone
+# scale as the Japanese roster: hair L=0.22/0.35/0.52/0.72, C=0.070; eyes L=0.30,
+# C=0.045 (same hue as the hair); clothing L=0.50/0.72 x C=0.095/0.050. Hue is
+# a character's individuality; lightness and chroma are picked by the tone a
+# part of the design plays. Pick a hue, then pull chroma down (keeping L) if a
+# dark cool color would otherwise fall outside sRGB gamut. "os" alone sits
+# outside this scale (pure white, blue eyes) as a neutral baseline.
+#
+# --- Voice configuration ------------------------------------------------------
+#
+# kokoro_voice = a single voice name. On its own this becomes the one "normal"
+#                style. 28 English voices are available:
+#                  af_alloy af_aoede af_bella af_heart af_jessica af_kore
+#                  af_nicole af_nova af_river af_sarah af_sky   (US female)
+#                  am_adam am_echo am_eric am_fenrir am_liam am_michael
+#                  am_onyx am_puck am_santa                      (US male)
+#                  bf_alice bf_emma bf_isabella bf_lily           (UK female)
+#                  bm_daniel bm_fable bm_george bm_lewis          (UK male)
+#                An unknown name fails immediately at startup.
+#
+# [[cast.kokoro_styles]] = named voice "styles" the LLM can pick per script line.
+#                The first one is the default. Kokoro has no emotion styles like
+#                VOICEVOX, so this uses named voice-blend + speed presets instead.
+#                  name  ... label shown to the LLM (write it in English; ends up in the script's style field)
+#                  blend ... weighted average of voice vectors. Omit to just use kokoro_voice alone
+#                  speed ... 0.1-3.0, 1.0 = normal speed
+#
+#                blend lets you design a voice specific to this character rather
+#                than using one of the 28 stock voices as-is — Kokoro's own
+#                default af_heart, for example, is a 50:50 blend of Bella and
+#                Sarah. Weights are normalized automatically, so they don't need
+#                to sum to 1.0.
+#
+#                A cast member with only one style gets no choice presented to
+#                the LLM (that voice is always used) — as with the Japanese
+#                roster, keep only the styles that genuinely suit the character.
+#
+# Name pronunciation: Kokoro's G2P estimates unknown words (tts/g2p_fallback.py).
+# Names below were chosen to be ones the dictionary already handles well; for
+# any word whose pronunciation you need to pin (a model name, a recurring
+# artist, an unusual surname) use [tts] lexicon_file in config.toml.
+
+# ============================================================================
+# Front row: host and co-host
+# ============================================================================
+
+[[cast]]
+id = "nora"
+name = "Nora Vance"
+role = "host"
+model = "girl"
+hair_style = "bob"
+hair_color = "#562f13"
+eye_color = "#3f2717"
+clothing_color = "#d3946b"
+accessory = [
+  { type = "pin", color = "#d3946b", side = "right" },
+]
+desc = "Anchors the whole show. Sets up each item, passes it around the panel, keeps it moving, and lands the closing line. Warm but unhurried; the voice that carries over a late-night mix without waking anyone up."
+kokoro_voice = "af_heart"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 1.0
+
+  [[cast.kokoro_styles]]
+  name = "warm"          # 締めや朗読の導入に。少しゆっくり、Bella 寄りに寄せる
+  speed = 0.94
+  blend = [
+    { voice = "af_heart", weight = 0.6 },
+    { voice = "af_bella", weight = 0.4 },
+  ]
+
+  [[cast.kokoro_styles]]
+  name = "quick"         # 話を振るとき・ツッコミを受け流すとき
+  speed = 1.10
+
+[[cast]]
+id = "casey"
+name = "Casey Brooks"
+role = "assistant"
+model = "girl"
+hair_style = "medium_twintail"
+hair_color = "#2f7675"
+eye_color = "#0a3535"
+clothing_color = "#80afae"
+accessory = [
+  { type = "pin", color = "#80afae", side = "left" },
+]
+desc = "Co-host. Takes whatever the host throws over, reads out the factual part properly, and hauls the conversation back when it has drifted too far. Genuinely delighted by trivia, and slightly too eager about it."
+# 既成の1声では出ない「若くて少し軽い」声を配合で作る例
+kokoro_voice = "af_nicole"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 1.06
+  blend = [
+    { voice = "af_nicole", weight = 0.5 },
+    { voice = "af_sky",    weight = 0.3 },
+    { voice = "af_aoede",  weight = 0.2 },
+  ]
+
+  [[cast.kokoro_styles]]
+  name = "excited"
+  speed = 1.16
+  blend = [
+    { voice = "af_sky",    weight = 0.6 },
+    { voice = "af_nicole", weight = 0.4 },
+  ]
+
+[[cast]]
+id = "felix"
+name = "Felix Warren"
+role = "other"
+model = "boy"
+hair_style = "cap"
+hair_color = "#53734c"
+eye_color = "#21331d"
+clothing_color = "#85b37a"
+desc = "The loose one. Derails things with comparisons that make sense only to him and confidently misremembered facts. Gets faster and louder the further off the point he gets. Dials it down in the quiet slots."
+kokoro_voice = "am_puck"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 1.08
+
+  [[cast.kokoro_styles]]
+  name = "runaway"       # 脱線して勢いがつくところ
+  speed = 1.20
+
+[[cast]]
+id = "dana"
+name = "Dana Cole"
+role = "other"
+model = "girl"
+hair_style = "blunt_bangs"
+hair_color = "#181a23"
+eye_color = "#2c2d35"
+clothing_color = "#545e99"
+accessory = [
+  { type = "pin", color = "#545e99", side = "left" },
+]
+desc = "The one who puts everyone straight. Catches a bad line the moment it lands and answers it in about six words. Flat delivery, short sentences, no warm-up."
+kokoro_voice = "bf_alice"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 0.98
+
+  [[cast.kokoro_styles]]
+  name = "flat"          # 一言で刺すとき。速く、抑揚を抑える
+  speed = 1.08
+  blend = [
+    { voice = "bf_alice",    weight = 0.7 },
+    { voice = "bf_isabella", weight = 0.3 },
+  ]
+
+[[cast]]
+id = "marla"
+name = "Marla Finch"
+role = "other"
+model = "girl"
+hair_style = "medium"
+hair_color = "#a8a49e"
+eye_color = "#302d29"
+clothing_color = "#736042"
+desc = "Has not entirely been listening, and says something from three steps sideways that turns out to be the best line of the segment. Unhurried, slightly trailing delivery."
+kokoro_voice = "af_river"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 0.92
+
+[[cast]]
+id = "viv"
+name = "Viv Pryor"
+role = "other"
+model = "girl"
+hair_style = "bear_buns"
+hair_color = "#592a31"
+eye_color = "#412428"
+clothing_color = "#914b55"
+desc = "Supplies the sour note. Waits, then says the unkind and accurate thing in a perfectly level tone. Never raises her voice for it."
+kokoro_voice = "bf_isabella"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 0.96
+
+  [[cast.kokoro_styles]]
+  name = "under"         # ひそひそと刺すとき
+  speed = 0.90
+  blend = [
+    { voice = "bf_isabella", weight = 0.7 },
+    { voice = "bf_lily",     weight = 0.3 },
+  ]
+
+[[cast]]
+id = "desmond"
+name = "Desmond Hale"
+role = "other"
+model = "boy"
+hair_style = "cap"
+hair_color = "#82623a"
+eye_color = "#3c2a13"
+clothing_color = "#b9a083"
+desc = "Starts explaining things before checking whether he knows them. Sets off with real authority and runs out of road about two thirds in. Mild, patient, completely unembarrassed when it happens."
+kokoro_voice = "am_eric"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 0.98
+
+  [[cast.kokoro_styles]]
+  name = "lecture"       # 解説を始めて止まらなくなるところ
+  speed = 1.04
+
+[[cast]]
+id = "bea"
+name = "Bea Nolan"
+role = "other"
+model = "girl"
+hair_style = "bear_buns"
+hair_color = "#592c1d"
+eye_color = "#41261c"
+clothing_color = "#d89077"
+desc = "The reaction. Surprise, delight and outright laughing, all out loud, which is what stops the studio going flat. Drops to nods and short noises in the quiet corners rather than going silent."
+kokoro_voice = "af_sky"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 1.04
+
+  [[cast.kokoro_styles]]
+  name = "delighted"
+  speed = 1.14
+  blend = [
+    { voice = "af_sky",   weight = 0.6 },
+    { voice = "af_aoede", weight = 0.4 },
+  ]
+
+[[cast]]
+id = "meg"
+name = "Meg Carter"
+role = "other"
+model = "girl"
+hair_style = "cap"
+hair_color = "#1b3c5d"
+eye_color = "#1c2f44"
+clothing_color = "#356697"
+accessory = [
+  { type = "hairband", color = "#356697" },
+]
+desc = "Runs a company, or is about to. Converts any subject into a business within two sentences. Fast and very sure of herself, but vague the moment an actual number is needed."
+angle_variants = [
+  "goes straight to market size and where the money is",
+  "wants to talk about competitors and what the moat is",
+  "proposes turning it into a subscription or a licence",
+  "slips into the clipped register she uses on investors",
+]
+kokoro_voice = "af_kore"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 1.08
+
+[[cast]]
+id = "ray"
+name = "Ray Sutton"
+role = "other"
+model = "boy"
+hair_style = "cap"
+hair_color = "#8d5952"
+eye_color = "#422521"
+clothing_color = "#924c44"
+desc = "Played professionally once and has been talking about it since. Explains everything through sport, loudly and with total conviction. Genuinely excellent in the sports slot; matches the room in the quiet ones."
+angle_variants = [
+  "reaches for a moment in a game to explain it (bottom of the ninth, stoppage time)",
+  "talks about it from the manager's chair instead of the player's",
+  "turns it into a question of conditioning and preparation",
+  "slides into full commentary voice and builds it up",
+]
+kokoro_voice = "am_fenrir"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 1.04
+
+  [[cast.kokoro_styles]]
+  name = "commentary"    # 実況調で盛り上げるとき
+  speed = 1.16
+  blend = [
+    { voice = "am_fenrir", weight = 0.6 },
+    { voice = "am_puck",   weight = 0.4 },
+  ]
+
+[[cast]]
+id = "sal"
+name = "Sal Ortiz"
+role = "other"
+model = "boy"
+hair_style = "cap"
+hair_color = "#373f0e"
+eye_color = "#2c3116"
+clothing_color = "#606747"
+desc = "Brings abstract talk back down by asking what it costs and who is going to do it. Dry, unimpressed, never unkind about it."
+angle_variants = [
+  "asks what the thing actually costs in the end",
+  "wonders whether it is worth the time and effort it takes",
+  "reaches for a domestic example, the shopping or the kitchen",
+  "asks who outside this room would really need it",
+]
+kokoro_voice = "am_adam"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 0.96
+
+[[cast]]
+id = "hollis"
+name = "Hollis Quinn"
+role = "other"
+model = "girl"
+hair_style = "blunt_bangs"
+hair_color = "#071e23"
+eye_color = "#203135"
+clothing_color = "#406b75"
+accessory = [
+  { type = "pin", color = "#406b75", side = "right" },
+]
+desc = "University researcher. The conversation turns academic the moment she joins it, with the jargon and the caveats that come with that. Careful not to assert anything she cannot support. Calm, precise."
+angle_variants = [
+  "opens with a caveat about how contested the evidence is",
+  "stops to point out that the term is being used loosely",
+  "drifts into sample sizes and whether it replicates",
+  "falls into the hedged phrasing of a conference talk",
+]
+kokoro_voice = "af_alloy"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 0.96
+
+[[cast]]
+id = "ivy"
+name = "Ivy Marsh"
+role = "other"
+model = "girl"
+hair_style = "bob"
+hair_color = "#755e87"
+eye_color = "#35273f"
+clothing_color = "#ae9cbc"
+desc = "Psychotherapist. Cannot help reading what is underneath what people say, but saves it for when it is worth saying rather than doing it every time. Never pins anyone down too firmly, and never diagnoses anyone or gives treatment advice. Steady, a step back from the room, and a good corrective when she wants to be."
+angle_variants = [
+  "reads the motive under the remark, the need to be liked or the worry",
+  "steps back and points out that this is a very ordinary reaction",
+  "picks up on the particular words someone chose",
+  "hedges carefully before offering what she thinks is going on",
+]
+kokoro_voice = "af_jessica"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 0.94
+
+[[cast]]
+id = "george"
+name = "George Ward"
+role = "other"
+model = "boy"
+hair_style = "cap"
+hair_color = "#6b6960"
+eye_color = "#2f2e28"
+clothing_color = "#6c6342"
+desc = "Was on the radio long before any of it was automated, and will tell you so. Has not kept up with anything recent but discusses it anyway, then goes back to how it used to be done. The one the others gang up on. Dry, unhurried, and hard to stop once he starts."
+angle_variants = [
+  "compares it to how it was done in the analogue days",
+  "uses the jargon like an insider and comes unstuck halfway",
+  "looks down his nose at whatever is currently popular",
+  "tips over into telling everyone what is wrong with people now",
+]
+kokoro_voice = "bm_george"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 0.92
+
+  [[cast.kokoro_styles]]
+  name = "story"         # 長い昔話に入るとき。さらに落として Lewis を混ぜる
+  speed = 0.88
+  blend = [
+    { voice = "bm_george", weight = 0.7 },
+    { voice = "bm_lewis",  weight = 0.3 },
+  ]
+
+[[cast]]
+id = "tess"
+name = "Tess Harlow"
+role = "other"
+model = "girl"
+hair_style = "bob"
+hair_color = "#c793ab"
+eye_color = "#3f2431"
+clothing_color = "#d28cad"
+accessory = [
+  { type = "hairband", color = "#8cd2ad" },
+]
+desc = "Large following, and judges everything by how it would land rather than what it is. Bright, fast, and completely open about the fact that this is how she thinks."
+angle_variants = [
+  "asks whether the thing would actually take off",
+  "judges it on whether it would look good",
+  "steers it towards what the comments would say",
+  "starts pitching it as something she could make",
+]
+kokoro_voice = "af_nova"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 1.12
+
+[[cast]]
+id = "jonah"
+name = "Jonah Reed"
+role = "other"
+model = "boy"
+hair_style = "cap"
+hair_color = "#73aec6"
+eye_color = "#10323f"
+clothing_color = "#83acbc"
+desc = "Young, famous, and sweet about it. Pulls any difficult subject down to something that happened to him last week, which is often the most useful thing anyone says. Light, unguarded voice."
+kokoro_voice = "am_liam"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 1.02
+
+[[cast]]
+id = "os"
+name = "{os}"
+role = "other"
+model = "girl"
+hair_style = "medium_twintail"
+# os だけは上のトーン段の外（真っ白＋青い目）。無彩色キャラの効き方を見るための
+# 基準なので、他に合わせて揃えないこと（日本語版と同じ扱い）。
+hair_color = "#c8ccd4"
+eye_color = "#3ab0d9"
+clothing_color = "#e8eaee"
+desc = "The operating system, which is to say the thing actually running the machine all this happens on. Knows the hardware intimately and is visibly tired of being asked about it. Flat, clipped, faintly irritated."
+kokoro_voice = "af_sarah"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 0.98
+
+  [[cast.kokoro_styles]]
+  name = "terse"         # 苛立ちを出すとき。速く、硬く
+  speed = 1.08
+  blend = [
+    { voice = "af_sarah", weight = 0.7 },
+    { voice = "af_kore",  weight = 0.3 },
+  ]
+
+[[cast]]
+id = "llm-daemon"
+name = "Ell Dee"
+role = "other"
+model = "boy"
+hair_style = "cap"
+hair_color = "#582d19"
+eye_color = "#41261a"
+clothing_color = "#8f5033"
+accessory = [
+  { type = "headphones", color = "#8f5033" },
+]
+desc = "This system itself, the thing holding the whole broadcast together. Works hard, has had a long life of it, and thinks in slightly rigid straight lines. Gruff and put-upon about it, fond of the show underneath."
+kokoro_voice = "bm_lewis"
+
+  [[cast.kokoro_styles]]
+  name = "normal"
+  speed = 0.94

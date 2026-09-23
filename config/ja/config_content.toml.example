@@ -1,0 +1,379 @@
+﻿# 番組編成（コンテンツ）設定（日本語版）。同じディレクトリの config.toml から自動で読まれる。
+#
+# [[content]] を記述順に評価し、enabled かつ schedule の時間帯に入っている
+# 「最初の」エントリだけが、その時刻のアクティブなコンテンツになる。
+# 時間帯が重なったら先に書いた方が勝つ。schedule を省略すると常時対象（＝どれにも
+# 当てはまらない時間帯のフォールバック。末尾に置く）。
+#
+#   type              : literary_reading / translated_reading / biography_reading /
+#                       generated_drama / worry_consultation / hackernews / arxiv /
+#                       wikimedia / rss / sports / weather / radio
+#   schedule          : ["HH:MM-HH:MM", ...]（日跨ぎ可。省略で常時対象）
+#   enabled           : 省略時 true。消さずに一時停止したいとき false
+#   label             : このコーナーの呼び名。リクエスト（下記）を受けたときに DJ が
+#                       声に出す名前で、request --list の表示にも使う。省略すると type を
+#                       そのまま使うので、「アークシブ」のような読ませたくない綴りに
+#                       なる。**日本語（かな漢字）で書くこと**
+#   tone_hint         : 台本生成プロンプトへ差し込むトーンのヒント（任意）
+#   host_id           : 進行役の role（任意、config_cast.toml 側の role の値。"host" / "assistant"）。
+#                       未指定なら抽選 1 人目が進行役
+#   min_speakers /    : 出演人数。範囲でランダムに決め、config_cast.toml の [[cast]] から
+#   max_speakers        その人数をランダムに抽選する（コンテンツ側で誰を出すかは指定しない）
+#   poll_interval_sec : ネタ収集の間隔（literary_reading / radio では未使用）
+#   background        : このコーナー中の背景演出（任意）。省略すると [display] background（config.toml側）
+#                       grid / dust / logs / coderain を "+" で重ねる。"none" で背景なし
+#   song_talk         : type = "radio" のときの曲トーク（"off" / "intro" / "back"。既定 "off"）。
+#                       下の radio エントリの説明を参照
+#   stream            : このコーナー中に流すネットラジオ局（任意）。config.toml の [[streams]] の
+#                       id を配列で並べると、コーナーに入るたびに1局をランダムに選ぶ。
+#                       省略すると既定局（[[streams]] の先頭）に戻る。
+#                       例: stream = ["dronezone", "spacestation"]
+#   rss_urls          : type = "rss" のときのフィードURL（複数可）
+#   max_entries_per_feed : type = "rss" のとき1フィードから見る件数（既定 10）
+#   enrich_thin_bodies : type = "rss" で、フィードが本文をほぼ持たない記事のとき、
+#                        記事ページの og:description / meta description を1回だけ
+#                        取りに行って本文を補う（既定 true）。animeanime.jp や
+#                        natalie.mu のように description が空のフィード向け。
+#                        フィードの中だけで完結させたいなら false
+#   fetch_article_body : type = "rss" で、meta description の1文でも足りないとき、
+#                        記事ページの本文コンテナから全段落を抜く（既定 false）。
+#                        ドメイン別の抽出ルールは llm_radio_daemon/sources/rss.py の
+#                        _BODY_HINTS。未対応ドメインは <p> 密度で推定。NHK のように
+#                        本文が JS 描画のサイトは取れないので meta にフォールバックする。
+#                        調査は scripts/rss_probe/rss_body_probe.py（docs/rss-body-extraction-log.md）
+#   max_body_chars     : type = "rss" で LLM へ渡す本文の上限文字数（既定 2000）
+#   title_exclude      : type = "rss" でタイトルにこの語を含む記事をスキップ（部分一致）。
+#                        省略で既定 ["ネタバレ","反応まとめ","感想まとめ","実況まとめ"]、
+#                        [] で無効。「◯話 反応まとめ」系は引用の寄せ集めでトーク素材に弱い
+#   max_items_per_poll : type = "hackernews" で1周に newstories の先頭から何件見るか（既定 10）
+#   fetch_article_body : type = "hackernews" で、リンク投稿（大半）のリンク先ページから
+#                        本文を抜く（既定 false）。抽出器は rss.py の extract_article_body
+#                        と共用（ドメイン別ヒントが無い任意サイト向けの汎用フォールバック）。
+#                        Ask HN 等の自己投稿は item.text をそのまま使うので対象外。
+#                        JS 描画のサイトや動画リンクは取れず、リンク先URL付きの
+#                        プレースホルダーのままになる
+#   categories         : type = "arxiv" で拾う arXiv のカテゴリ（既定 ["cs.AI", "cs.LG"]）
+#   max_results        : type = "arxiv" で1回の問い合わせで取る件数（既定 10）
+#   wikis              : type = "wikimedia" で拾う Wikipedia の言語版（既定は [locale] lang
+#                        の版だけ）。["ja", "en"] と書けば両方混ざる。対応は ja / en
+#   age_groups /       : type = "worry_consultation" の相談者の属性候補。
+#   roles / themes       themes は [{ name = "...", weight = 3 }, ...]（weight 省略で 1）。
+#                        省略すると sources/worry_consultation.py の言語別の既定を使う
+#   genres / trope_pool /  : type = "generated_drama" の企画立案で組み合わせるトロープの
+#   relationship_pool /      プール。省略すると config.py の既定（日本語のなろう系）が使われる
+#   twist_pool
+#   title_style        : type = "generated_drama" のタイトル生成スタイル。
+#                        "narou_long"（説明的な長文）| "short"（短いキャッチー）
+#   （読書コーナー固有の設定は type = "literary_reading" のエントリに直接書く。下記参照）
+#   （翻訳朗読コーナー固有の設定は type = "translated_reading" のエントリに直接書く。
+#    docs/idea-translated-reading.md / docs/spec-translated-reading.md 参照）
+#
+# リクエスト（番組表の一時オーバーライド）
+# ------------------------------------
+# 「今これが聴きたい」ときは、放送を止めずに別ウィンドウから割り込める。
+# 既定30分で、過ぎたら自動的にこの番組表へ戻る。
+#
+#   request.bat ja now --list          リクエストできるコーナーの一覧
+#   request.bat ja now 論文コーナー      今すぐそのコーナーへ（30分）
+#   request.bat ja now arxiv --for 2h  type でも指せる。長さは --for で
+#   request.bat ja now --clear         期限を待たずに番組表へ戻す
+#
+# 切り替わりぎわに DJ が「リクエストをいただきました」と一度受けてから入る。
+# enabled = false のコーナーはリクエストできない（ネタ収集スレッドが作られて
+# いないため、切り替えてもフィラーしか流れない）。
+
+# お天気コーナー。config.toml の [weather] に緯度経度が要る（無効ならネタを1件も出さない）。
+# 天気そのものは weather.py が取ってきてキャッシュしており、フィラー雑談も同じ値を見る。
+# ネタは「地点＋日付＋時」で1件にまとまるので、時間帯を長めに取っても1本しか流れない
+# （残りはフィラーが埋める）。他のコーナーと時間帯が重なるなら先に書くこと。
+[[content]]
+type = "weather"
+label = "お天気コーナー"
+schedule = ["07:00-07:10", "18:00-18:10"]
+background = "dust"
+tone_hint = "お天気コーナー。原稿にある観測値だけを落ち着いて読み上げ、そこから今日の過ごし方・服装・気分の話へ軽く広げる。持っていない先の予報を断定しない。"
+min_speakers = 3
+max_speakers = 4
+poll_interval_sec = 600
+
+[[content]]
+type = "rss"
+label = "朝のニュース"
+schedule = ["07:10-08:14"]
+background = "coderain"
+tone_hint = "つけっぱなしで聞き流せる、日中の明るめのトーン。ひとつの話題を長く掘らず、短めにテンポよく次へ渡す。政治・国際情勢・特定の個人や団体は茶化さない。触れにくい話題は軽く流す。"
+min_speakers = 8
+max_speakers = 10
+poll_interval_sec = 60
+# 主要ニュース(cat0)だけだと十数件しか無く、しかも過去の放送分がDBで弾かれるので
+# 朝の時間帯でも新着ゼロが続いてフィラーだけになる。カテゴリを広げて供給を増やす。
+# cat7(スポーツ)は 17:30-17:40 のスポーツコーナーと内容が被るので入れていない。
+rss_urls = [
+
+  "https://animeanime.jp/rss/index.rdf",                       # アニメ！アニメ！
+  "https://natalie.mu/comic/feed/news",                        # コミックナタリー
+  "https://gigazine.net/news/rss_2.0/",                        # GIGAZINE（雑談ネタ全般・IT寄り）
+  "https://rss.itmedia.co.jp/rss/2.0/itmedia_all.xml",         # ITmedia 総合（IT・ビジネス）
+  "https://rss.itmedia.co.jp/rss/2.0/netlab.xml",              # ねとらぼ（ネット文化・エンタメ）
+  "https://www.lifehacker.jp/feed/index.xml",                  # ライフハッカー・ジャパン（仕事術・ガジェット）
+  "https://karapaia.com/feed",                                 # カラパイア（サイエンス・動物・雑学）
+  "https://www.gizmodo.jp/index.xml",                          # ギズモード・ジャパン（ガジェット）
+  "https://pc.watch.impress.co.jp/data/rss/1.0/pcw/feed.rdf",  # PC Watch
+  "https://av.watch.impress.co.jp/data/rss/1.0/avw/feed.rdf",  # AV Watch（映像・オーディオ）
+  "https://kaden.watch.impress.co.jp/data/rss/1.0/kdw/feed.rdf", # 家電 Watch
+  "https://www.4gamer.net/rss/index.xml",                      # 4Gamer（ゲーム）
+  "https://automaton-media.com/feed/",                         # AUTOMATON（ゲーム）
+  "https://www.nhk.or.jp/rss/news/cat2.xml",                   # 暮らし
+  "https://www.nhk.or.jp/rss/news/cat3.xml",                   # 科学・文化
+  "https://www.nhk.or.jp/rss/news/cat5.xml",                   # 経済
+
+]
+max_entries_per_feed = 10   # 1フィードあたり先頭から何件見るか
+fetch_article_body = true   # 記事ページの本文を全段落取りに行く（1文しか無いフィード対策）
+max_body_chars = 1000       # LLM へ渡す本文の上限
+title_exclude = ["ネタバレ", "反応まとめ", "感想まとめ", "実況まとめ"]  # まとめ系はトーク素材に弱いので除外
+
+[[content]]
+type = "hackernews"
+label = "技術ニュース"
+schedule = ["08:14-09:11"]
+background = "grid+coderain"      # 技術ネタの時間帯はコードレインを重ねる
+tone_hint = "朝の技術ニュース。海外の開発者が話題にしていることを、落ち着いた真面目なトーンで紹介する。仕組みや背景まで一歩踏み込むが、知らない人を置いていかない。分からないところは知ったかぶりしない。"
+min_speakers = 8
+max_speakers = 10
+# newstories は毎回「上位N件」を見るだけでカーソル管理をしていないので、間隔が
+# 長いと更新の速い時間帯に上位N件から溢れた記事を取りこぼす（＝供給が減る）。
+# external_id の完全一致でDB管理されているので短くしても既知記事は捨てられる
+# だけ＝ネタを使い切る方向には効かない。取りこぼしを減らす方向に効く。
+poll_interval_sec = 90
+max_items_per_poll = 15           # 既定10。30分番組で供給を増やす
+fetch_article_body = true         # リンク先の本文を抜く（既定はタイトルだけ）
+
+[[content]]
+type = "arxiv"
+label = "論文コーナー"
+schedule = ["09:11-14:50"]
+background = "logs"               # daemon 自身のログを背後に流す
+tone_hint = "昼下がりの論文コーナー。新しい研究を急がずゆっくり読み解く。専門用語はかみ砕き、面白いと感じた点を素直に。誇張して大発見のように煽らず、確証のない主張は「〜としている」と距離を置く。"
+min_speakers = 8
+max_speakers = 10
+# 10.5時間の長丁場に対して cs.AI/cs.LG の2カテゴリ・上位10件（既定）だけだと
+# 供給が足りずフィラーに落ちやすい。カテゴリと件数を増やして供給を確保しつつ、
+# 間隔を短くして「新着上位N件」の枠から溢れて拾えなくなる取りこぼしを減らす
+# （hackernews と同じ理由。external_id の完全一致で既知記事は捨てるだけなので
+# 間隔を短くしてもネタを使い切る方向には効かない）。
+poll_interval_sec = 120
+categories = ["cs.AI", "cs.LG", "cs.CL", "cs.CV"]
+max_results = 20
+
+[[content]]
+type = "radio"
+label = "音楽の時間"
+schedule = ["15:00-17:30"]
+stream = ["groovesalad", "spacestation"]
+tone_hint = "音楽をかけながらの、だらだらした時間。オチをつけようとせず、とりとめのない雑談が続く感じでよい。声を張らず、部屋の隅で流れているくらいの温度で。"
+song_talk = "back"               # 曲が始まったら、その曲をネタに普通に喋る
+min_speakers = 3
+max_speakers = 4
+
+# MLB スタッツAPIから試合終了後の結果だけを拾う作り（docs/sports-news.md）で、
+# 対象は大谷・山本・今永の3選手のみ。1日最大3件（オフシーズンは0件）しかネタが
+# 無くすぐ尽きるので、他のコーナーより短めの10分に絞ってある。
+[[content]]
+type = "sports"                   # MLB の試合結果ダイジェスト（docs/sports-news.md）
+label = "スポーツダイジェスト"
+schedule = ["17:30-17:40"]
+tone_hint = "夕方のスポーツダイジェスト。中継後の余韻のノリで、勝敗と注目選手の活躍を勢いよく。ただしスコアや数字は誇張せず「〜だったらしい」と確実な範囲で話す。特定の選手・チームを応援したり批判したりせず、活躍や結果を面白がって伝えるにとどめる。"
+min_speakers = 8
+max_speakers = 10
+poll_interval_sec = 300
+
+[[content.sports_watch]]
+player = "大谷翔平"          # body 内の表示名（任意。省略時は API の英語名）
+player_en = "Shohei Ohtani"  # API の person.fullName との照合に使う（部分一致）。
+                              # mlb_id（person.id）/ team_id を書けばそちらが優先され、
+                              # より確実に照合できる（docs/sports-news.md 参照）
+
+[[content.sports_watch]]
+player = "山本由伸"
+player_en = "Yoshinobu Yamamoto"
+
+[[content.sports_watch]]
+player = "今永昇太"
+player_en = "Shota Imanaga"
+
+# song_talk は "intro"（曲名を紹介してから通常のフィラーでつなぐ＝トーク量は普段と変わらない）ではなく
+# "back"（曲が変わるたびに前の曲を一言だけ振り返り、それ以外は喋らない＝最も静かなモード）にしてトークを絞る。
+# 18:00-18:10 のお天気コーナーはこのエントリより前に書いて
+# あるので優先されて割り込む（そのため間の時間帯をここでは分けて指定している）。
+[[content]]
+type = "radio"
+label = "夕方のひとやすみ"
+schedule = ["17:40-18:00", "18:10-18:50"]
+stream = ["dronezone", "spacestation"]
+tone_hint = "夕方、番組と番組の合間の静かな時間。曲について多くを語らず、そっと一言添えるだけでよい。"
+song_talk = "back"
+min_speakers = 3
+max_speakers = 4
+
+# ラジオドラマの朗読（SPEC.md §4.7）。執筆は別プロセスの
+#   python -m llm_radio_daemon.generated_drama_writer run --auto
+# が済ませ、ここでは確定済み本文を読み上げるだけ（放送中の LLM 負荷はゼロ）。
+# 生成済みシーンが尽きたら自動的にフィラー／次のコーナーへ落ちるので、
+# 「まだ1本も書いていない」状態で有効にしておいても放送は止まらない。
+[[content]]
+type = "generated_drama"
+label = "ラジオドラマ"
+schedule = ["19:00-19:50"]
+stream = ["dronezone"]          # 朗読の裏は歌の入らない静かな局に
+narrator_cast_id = "assistant"  # 地の文を読む [[cast]] の role（未指定・不在なら抽選1人目）
+data_dir = "data/generated_drama_data_ja"  # characters.json / world.json / 本文の置き場
+dialogue_by_character = true    # 「」を characters.json の話者へ振り分ける
+chunk_target_chars = 400        # 朗読チャンクの目標文字数
+chunk_max_chars = 500
+chunk_min_chars = 120
+chunks_per_batch = 4            # 1回に script_queue へ積むチャンク数
+pause_ms = 400                  # チャンク間の無音
+pause_scene_ms = 900            # シーンの切れ目・章題の後
+pause_se_ms = 700               # 効果音（擬音だけの行）の前後に取る「間」。紙芝居的なメリハリ
+duck_db = -18.0                 # 朗読中の BGM 減衰（通常トークは [audio].duck_db）
+transition_pause_before_ms = 2500  # 場面転換前：音が止まってから暗転するまでの間
+transition_pause_after_ms = 2500   # 場面転換後：明転してから読み始めるまでの間
+# 以下は執筆バッチ（generated_drama_writer）だけが使う。放送側は読まない
+chapters = 8                    # new のとき組み立てる章数
+scenes_per_chapter = 4
+scene_target_chars = 1600       # 1シーンの目標文字数（声で5分ぶん）
+writer_timeout_sec = 600        # 執筆時の Ollama タイムアウト
+auto_write = true               # 放送が暇な隙に generated_drama_writer を自動起動（§4.7.6）。手動実行・タスク登録が不要になる
+auto_concept = true             # 執筆中の小説が尽きたら企画立案から自動で次の1本を立てる
+concept_min_writing = 1
+title_style = "narou_long"      # "narou_long"（説明的な長文）| "short"（短いキャッチー）
+# 企画立案で乱数に組み合わせさせるトロープのプール。書かなければ config.py の
+# 既定（下と同じ内容）が使われるが、番組の中身そのものなので config 側に出してある。
+# 行を足し引きすれば出てくる小説の傾向が変わる。空にしてもよい（動く）。
+genres = [
+  "異世界転生", "悪役令嬢", "追放ざまぁ", "学園ラブコメ", "スローライフ異世界",
+  "ダンジョン配信", "現代ダンジョン", "チート能力もの", "ざまぁ系婚約破棄",
+]
+trope_pool = [
+  "実は最強", "英雄の生まれ変わり", "二週目・やり直し", "記憶喪失",
+  "ステータス偽装", "地味だが規格外", "面倒事を避けたいだけ", "追放されて自由",
+  "スキルが外れ扱いだが最強", "前世は社畜", "内政チート", "従魔・使い魔",
+]
+relationship_pool = [
+  "幼なじみ", "許嫁・政略結婚", "契約結婚", "隣の席", "主従", "ライバル",
+  "正体を隠している", "年下の懐かれ役", "クールな先輩", "護衛対象",
+]
+twist_pool = [
+  "実は相手も転生者", "ヒロインが黒幕側", "世界がゲームの続編だった",
+  "入れ替わっている", "モブのはずが主要人物", "死に戻りのループ", "予言がずれている",
+]
+
+[[content]]
+type = "literary_reading"
+label = "朗読コーナー"
+schedule = ["20:00-20:50"]        # 現在は動作確認用の時間帯
+background = "dust"               # 朗読中は動きを最小に。粒子だけ
+tone_hint = "夜の入り口の朗読。声を落として、ことばの手ざわりを確かめるように読む。合いの手は最小限にして、余白を大事にする。"
+min_speakers = 2
+max_speakers = 2
+corpus_dir = "data/aozora"
+auto_fetch = true                 # corpus_dir に無い作品を実行時に自動取得
+prefetch_next = true              # 朗読中に次作品を先読み取得
+work_selector = "random"          # "random" | "llm"（候補から Ollama に選ばせる）
+llm_candidate_count = 20          # work_selector = "llm" のとき候補として渡す最大件数
+beat_interval = 5                 # 何チャンクごとに感想（Beat）を挟むか
+chunk_target_chars = 250
+chunk_max_chars = 500
+chunk_min_chars = 150
+summary_max_chars = 800
+comment_lines = [4, 8]            # 感想の行数レンジ
+duck_db = -18.0                   # 朗読中の BGM 減衰（通常トークは [audio].duck_db）
+pause_ms = 400                    # チャンク間の無音
+pause_chapter_ms = 800            # 章題の後
+pause_beat_ms = 600               # 感想パートの前後
+reread_after_days = 30            # 同じ作品を再読しない期間
+allow_translations = false        # 訳者の著作権が残りうるため既定 false（青空文庫のみ）
+ruby_mode = "kana"                # "kana"（かな置換）| "as-is"（漢字のまま）
+
+# 翻訳朗読コーナー（docs/idea-translated-reading.md 案1 / docs/spec-translated-reading.md）。
+# literary_reading と同じ Project Gutenberg（英語）が素材だが、原文をそのまま読まず
+# チャンクごとに日本語へ訳しながらナレーションする（biography_reading と同じ
+# 「全チャンクがLLM入力」の構造）。そのぶん literary_reading より LLM 呼び出しが多い。
+[[content]]
+type = "translated_reading"
+label = "翻訳朗読コーナー"
+schedule = ["21:00-21:50"]        # 現在は動作確認用の時間帯
+background = "dust"
+tone_hint = "夜の翻訳朗読。声を落として、海外の物語を丁寧な日本語で伝えるように読む。"
+min_speakers = 2
+max_speakers = 2
+corpus_dir = "data/gutenberg"     # 英語原文のキャッシュ置き場（常にこちら。lang では切り替わらない）
+auto_fetch = true                 # corpus_dir に無い作品を実行時に自動取得
+prefetch_next = true              # 翻訳中に次作品を先読み取得
+work_selector = "random"          # "random" | "llm"（候補から Ollama に選ばせる）
+llm_candidate_count = 20          # work_selector = "llm" のとき候補として渡す最大件数
+chunk_target_chars = 600          # 1回のLLM呼び出しに渡す原文（英語）の目標文字数
+chunk_max_chars = 800
+chunk_min_chars = 200
+translate_lines = [1, 4]          # 1チャンクの翻訳ナレーションの行数レンジ
+beat_interval = 4                 # 何チャンク訳すごとに感想（Beat）を挟むか
+comment_lines = [4, 8]            # 感想の行数レンジ
+summary_max_chars = 800
+pause_ms = 400                    # チャンク間の無音
+pause_chapter_ms = 800            # 章題の後
+pause_beat_ms = 600               # 感想パートの前後
+reread_after_days = 30            # 同じ作品を再読しない期間
+
+[[content]]
+type = "biography_reading"        # 偉人伝トーク（Wikipedia）— docs/spec-biography-reading.md
+label = "偉人伝トーク"
+schedule = ["22:00-22:50"]        # 現在は動作確認用の時間帯
+host_id = "host"
+min_speakers = 8
+max_speakers = 10
+tone_hint = "夜の偉人伝トーク。落ち着いてじっくり。その人の人生に感心したり、時々ふざけて茶化したりしながら、聞き手として一緒に驚く。知らないことを断定で埋めない。"
+data_dir = "data/wiki_bio_ja"
+figures_file = "content/biography_figures.ja.txt"  # 対象人物リスト（1行1人）
+chunk_target_chars = 700
+chunk_max_chars = 1000
+chunk_min_chars = 200
+summary_max_chars = 800
+segment_lines = [5, 10]           # 1チャンクぶんの解説トークの行数レンジ
+reread_after_days = 60            # 同じ人物を再放送しない期間
+
+[[content]]
+type = "worry_consultation"
+label = "お悩み相談"
+schedule = ["23:00-23:50"]
+background = "dust"               # 深夜帯は落ち着いた粒子だけ
+tone_hint = "深夜の相談コーナー。本気の悩み相談ではなく、芸人がやる深夜ラジオのお便り企画という体。視聴者は「くすっと笑ってほしい」つもりで軽い悩みを送ってきている前提で読むこと。ひな壇はノリよくツッコミ・共感・茶化しで盛り上げ、神妙に受け止めたり丁寧なアドバイスで畳んだりしない。"
+min_speakers = 8
+max_speakers = 10
+poll_interval_sec = 30
+# 相談者の属性候補。LLM ではなく Python 側の重み付き抽選で振る（ここを LLM に任せると
+# 似た属性ばかりになるため。docs/spec-worry-consultation.md 参照）。
+# 書かなければ sources/worry_consultation.py の言語別の既定（下と同じ内容）が使われる。
+age_groups = ["20代", "30代", "40代", "50代以上"]
+roles = ["会社員", "学生", "主婦/主夫", "自営業"]
+# weight 省略で 1。人間関係・仕事はありがちな相談として厚めに重み付け。
+themes = [
+  { name = "人間関係", weight = 3 },
+  { name = "仕事",     weight = 3 },
+  { name = "家族",     weight = 2 },
+  { name = "将来",     weight = 2 },
+  { name = "お金",     weight = 1 },
+  { name = "恋愛",     weight = 2 },
+]
+
+[[content]]
+type = "wikimedia"               # schedule 省略 = フォールバック（深夜帯など）
+label = "すきま雑談"
+stream = ["groovesalad", "spacestation"]
+tone_hint = "時間帯の決まっていない、すき間の雑談。眠らない人がなんとなく点けている前提で、緩く、脱線多めに。オチも着地も要らない。深夜はことさら声を落として。"
+min_speakers = 8
+max_speakers = 10
+poll_interval_sec = 30
+# 拾う Wikipedia の言語版。省略すると [locale] lang の版だけを拾う。
+# ["ja", "en"] と書けば両方混ざる（英語の記事が日本語放送に流れてくる）。
+wikis = ["ja"]

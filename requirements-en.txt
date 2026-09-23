@@ -1,0 +1,25 @@
+# 英語版（[tts] backend = "kokoro"）の追加依存。
+# 日本語版（VOICEVOX）だけ使うなら不要。requirements.txt と併せて入れる:
+#     pip install -r requirements.txt -r requirements-en.txt
+#     python -m spacy download en_core_web_sm
+#
+# モデル本体（kokoro-v1.0.onnx 310MB / voices-v1.0.bin 27MB）は初回起動時に
+# [tts] model_dir へ自動取得する（青空文庫と同じ lazy fetch）。
+
+onnxruntime>=1.20,<2
+misaki>=0.7,<1
+spacy>=3.8,<4
+
+# num2words は misaki が数字の読み上げに使う（module レベル import なので必須）。
+# LGPL-2.1 で、この一式で唯一の非 MIT/Apache。
+# 0.5.15 / 0.5.16 はメンテナのフィッシング被害でマルウェアが混入した版
+# （GHSA-jxr6-qrxx-2ph2 / MAL-2025-6794 / PYSEC-2025-72、2025-07-31 公開）。
+# PyPI からは削除済みだが、ミラーや古いキャッシュを掴まないよう明示的に除外する。
+num2words>=0.5.14,!=0.5.15,!=0.5.16,<0.6
+
+# 辞書外語のフォールバック G2P（Apache-2.0、torch 不要）。
+# nltk 3.10.3 に GHSA-8mgp-746c-j5xp（2026-09-02, HIGH, 未修正）があるが、
+# 成立条件は「アプリが pathsec を有効にし、信頼できない入力にモデルパスを選ばせる」
+# ことで、本プロジェクトの使い方（固定パスのタガーと CMUdict を読むだけ）では
+# 該当しない。修正版が出たら追随すること。
+g2p_en>=2.1,<3

@@ -1,0 +1,26 @@
+# テキストは repo 内・作業ツリーとも LF 固定。core.autocrlf の値や OS に関係なく
+# CRLF が混ざったコミットを防ぐ（過去に Windows の checkout で作業ツリーが CRLF 化し、
+# 全行 diff の壊れコミットを作ってしまったことがある）。
+* text=auto eol=lf
+
+# バイナリは明示しておく（git の自動判定に任せても大抵は正しいが、事故を避ける）。
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.woff  binary
+*.woff2 binary
+*.mp3  binary
+*.wav  binary
+*.flac binary
+*.ogg  binary
+*.ttf  binary
+*.otf  binary
+*.ttc  binary
+*.safetensors binary
+*.gguf binary
+*.onnx binary

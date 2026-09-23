@@ -1,0 +1,18 @@
+# LLM Radio Daemon 依存パッケージ
+numpy>=1.26
+sounddevice>=0.4.6
+requests>=2.31
+ursina>=8.3.0
+feedparser>=6.0.14
+
+# ネットラジオのデコードに使う ffmpeg 本体を同梱するラッパー。プラットフォーム別の
+# ffmpeg バイナリが wheel 自体に含まれており、`pip install`（本ファイル経由）した
+# 時点で site-packages 配下に展開される（実行時の追加ダウンロードはなし。手動インストール・
+# PATH設定も不要）。ラッパー自体は BSD-2-Clause だが、同梱される ffmpeg バイナリ本体は
+# 別ライセンス。Windows版（0.6.0時点）は gyan.dev の ffmpeg 7.1 "essentials" build で、
+# `ffmpeg -version` の configuration に --enable-gpl --enable-version3 --enable-libx264
+# が含まれる GPLv3 ビルド。本プロジェクトはこのバイナリを subprocess 経由で外部プロセスと
+# して呼び出すだけ（リンクしない・自分のリポジトリや配布物に同梱もしない）ので、
+# VOICEVOX/Ollama と同様「外部ツールを利用する」扱いで問題ないが、GPLv3ビルドである
+# 点は認識しておくこと。
+imageio-ffmpeg>=0.5

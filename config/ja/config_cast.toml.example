@@ -1,0 +1,387 @@
+﻿# 出演者ロースター（日本語版）。同じディレクトリの config.toml から自動で読まれる。
+# 雛形は config/ja/config_cast.toml.example。
+#
+# id は台本・字幕・表示で使う短い ASCII キー。id そのものはどんな文字列でもよく、
+# host_id / narrator_cast_id からは参照されない（それらは下の role の値で指定する）。
+# トークごとに、アクティブなコンテンツの min_speakers〜max_speakers 人がこの
+# ロースターからランダムに選出される（進行役はコンテンツの host_id で指定。値は
+# id ではなく role（"host" / "assistant"）。未指定なら抽選 1 人目）。
+# config_cast.toml が無い、または [[cast]] を1つも書かないと起動時に即エラーで終了する。
+# 最低1人、この例をコピーして定義すること。多いぶんには問題なく、トピックごとに
+# min_speakers〜max_speakers 人が抽選されるので顔ぶれの振れ幅が大きくなる。
+#
+# role = "host" / "assistant" / "other" の3種のみ。省略可（既定 "other"）。
+#        host / assistant … 前列（床）。ひな壇トークの進行役ガードが、抽選メンバーに
+#                           host / assistant がいればその人を先頭（進行役）へ寄せる。
+#        other            … 後列（台の上）のひな壇。一発ネタ系のキャラはこれにしておく。
+#
+# model = 3D 表示のキャラモデル種別キーワード。省略可（既定 "girl"）。
+#         現在 "girl"（女子・ボブ・ワンピース） / "boy"（男子・短髪・箱型）。
+#         種類は今後追加予定（llm_radio_daemon/display/models.py の MODEL_PRESETS）。
+#
+# hair_style = 髪型キーワード。省略可（model の既定髪型を使う。girl→bob / boy→cap）。
+#              選べる値（llm_radio_daemon/display/models.py の HAIR_STYLES）:
+#                ショート … bob（ボブ） / bear_buns（熊ダンゴ） /
+#                          blunt_bangs（前髪パッツン） / cap（男子の浅い短髪）
+#                ミディアム … medium（ノーマル） / medium_twintail（ツインテール）
+#
+# hair_color / eye_color / clothing_color / accessory の color は、
+# 全員ぶんを OKLCH（L=知覚明度・C=彩度・H=色相）の「トーン段」に載せる。
+# 色相だけをキャラの個性にし、明度と彩度はパーツの役割で決めること。
+#
+#   髪  L = 0.22(黒) / 0.35(濃) / 0.52(中) / 0.72(淡)     C = 0.070
+#   目  L = 0.30                                          C = 0.045（色相は髪と同じ）
+#   服  L = 0.50(濃) / 0.72(淡)  ×  C = 0.095(鮮) / 0.050(淡)  ＝ 4段
+#   無彩色（白・灰・黒）のキャラは C = 0.004〜0.018 に落として L 段だけ揃える。
+#
+# 服の彩度2段は統一しないこと（りん / のあ / 塔子 の3人が同じベージュに潰れる）。
+#
+# 肌は poly_character 側で L=0.86 のグレー固定。服・髪をそれ以上明るくすると
+# 肌と溶けるので、淡段の上限は 0.72〜0.75 までにしておくこと。
+# 実機では服はスカート tint(-0.15) / 袖 tint(-0.25) ＋ライティングでさらに沈む。
+#
+# os だけはこの体系の外（真っ白＋青い目）に置いてある。無彩色キャラの効き方を
+# 見るための基準なので、他に合わせて揃えないこと。
+#
+# voicevox_speaker_name   = VOICEVOX のキャラ名（例: "ずんだもん"）。/speakers に実在する
+#                           名前である必要があり、起動時に自動で突き合わせる（不一致は即エラー終了）。
+# voicevox_speaker_styles = LLM が台本の行ごとに選べる声のスタイルの「名前」だけを並べる
+#                           （id は書かない。起動時に自動解決する）。先頭が既定スタイル。
+#                           持ち味に合うものだけ厳選する。1つだけなら LLM に選択肢は提示されず常にその声になる。
+#
+# name / desc の差し込み記法（config 読み込み時に置換される）:
+#   {model}                   → [llm].model（例: qwen3.8:27b）
+#   {engine}（= {engine_label}） → 推論エンジン名（例: Ollama）
+#   {os}                      → 実行 OS 名（例: Windows / macOS / Linux）
+#   番組を動かしている当の LLM 自身やホスト環境をキャラとして出演させたいとき用。
+#   （※ 上の model = キーは 3D モデル種別で {model} とは別物）
+#   例:
+#     [[cast]]
+#     id = "ai-model"
+#     name = "{model}"
+#     role = "other"
+#     desc = "AIモデル。名前は{model}、このシステムの推論を動かしている本人。"
+#     voicevox_speaker_name = "ずんだもん"
+#     voicevox_speaker_styles = ["ノーマル"]
+#
+#     [[cast]]
+#     id = "llm-engine"
+#     name = "{engine}"
+#     role = "other"
+#     desc = "推論エンジン。{engine}という名前で、{model}を動かしている。"
+#     voicevox_speaker_name = "四国めたん"
+#     voicevox_speaker_styles = ["ノーマル"]
+
+[[cast]]
+id = "rin"
+name = "葛西 りん"
+role = "host"
+model = "girl"
+hair_style = "bob"
+hair_color = "#562f12"
+eye_color = "#3f2717"
+clothing_color = "#c89d53"
+accessory = [
+  { type = "pin", color = "#c89d53", side = "right" },
+]
+desc = "番組の総合司会。全体を仕切り、話を振って回し、最後に落として締める。一人称は「私」。落ち着いて、よく通る声。恋愛ごとには鈍感で、誰かに想われていても気づかない。"
+voicevox_speaker_name = "ナースロボ＿タイプＴ"
+voicevox_speaker_styles = ["ノーマル", "楽々", "内緒話"]
+
+[[cast]]
+id = "aoi"
+name = "豊岡 あおい"
+role = "assistant"
+model = "girl"
+hair_style = "medium_twintail"
+hair_color = "#a57262"
+eye_color = "#41261d"
+clothing_color = "#7cb0ac"
+desc = "司会のアシスタント。ネタの事実部分を丁寧に読み上げ、脱線しすぎたら本筋へ戻す。一人称は「私」。明るく折り目正しい口調。司会のりんを支えるうちにそれとなく目で追うようになったが、口には出さず、いつもどおり振る舞う。"
+voicevox_speaker_name = "春日部つむぎ"
+voicevox_speaker_styles = ["ノーマル"]
+
+[[cast]]
+id = "tsubasa"
+name = "椎野 つばさ"
+role = "other"
+model = "boy"
+hair_style = "cap"
+hair_color = "#55734b"
+eye_color = "#22331d"
+clothing_color = "#84b473"
+desc = "ボケ担当。突拍子もない例えと勘違いで場をかき回す。一人称は「僕」。語尾に勢いがあり、ボケるときほど早口でまくし立てる。落ち着いた時間帯では勢いを抑える。"
+voicevox_speaker_name = "ずんだもん"
+voicevox_speaker_styles = ["ノーマル", "ツンツン", "あまあま", "ヘロヘロ", "なみだめ"]
+
+[[cast]]
+id = "shizuka"
+name = "原野 静"
+role = "other"
+model = "girl"
+hair_style = "blunt_bangs"
+hair_color = "#181a23"
+eye_color = "#2c2d34"
+clothing_color = "#5e5b97"
+accessory = [
+  { type = "pin", color = "#5e5b97", side = "left" },
+]
+desc = "ツッコミ担当。他人のボケを的確に拾って刺す。冷めた声で、一言が短く鋭い。一人称は「私」。りんの仕切りは内心買っていて、つい視線が向くが素っ気なさで隠す。あおいとたまに目が合っては気まずく逸らす。恋バナに話を持っていくことはしない。"
+voicevox_speaker_name = "冥鳴ひまり"
+voicevox_speaker_styles = ["ノーマル"]
+
+[[cast]]
+id = "naomi"
+name = "富永 なおみ"
+role = "other"
+model = "girl"
+hair_style = "medium"
+hair_color = "#7eb396"
+eye_color = "#173526"
+clothing_color = "#4a6d5a"
+accessory = [
+  { type = "hairband", color = "#4a6d5a" },
+]
+desc = "天然ボケ。話をよく聞いておらず斜め上の感想を言う。一人称は「私」。素朴で間延びした口調。"
+voicevox_speaker_name = "猫使ビィ"
+voicevox_speaker_styles = ["ノーマル", "人見知り"]
+
+[[cast]]
+id = "akane"
+name = "桐原 茜"
+role = "other"
+model = "girl"
+hair_style = "bear_buns"
+hair_color = "#592a2f"
+eye_color = "#422426"
+clothing_color = "#904a58"
+desc = "毒舌担当。冷静に皮肉を差し込む。一人称は「私」。落ち着いたトーンで淡々と辛口。"
+voicevox_speaker_name = "四国めたん"
+voicevox_speaker_styles = ["ノーマル", "ツンツン", "ヒソヒソ"]
+
+[[cast]]
+id = "toko"
+name = "三宅 塔子"
+role = "other"
+model = "girl"
+hair_style = "medium"
+hair_color = "#c59b77"
+eye_color = "#3e2915"
+clothing_color = "#b5a27d"
+accessory = [
+  { type = "hairband", color = "#3e2915" },
+]
+desc = "うんちく担当。すぐ知ったかぶりで解説を始め、たいてい途中で怪しくなる。一人称は「私」。おっとりした口調。"
+voicevox_speaker_name = "あんこもん"
+voicevox_speaker_styles = ["ノーマル", "つよつよ", "よわよわ", "けだるげ"]
+
+[[cast]]
+id = "noa"
+name = "池上 のあ"
+role = "other"
+model = "girl"
+hair_style = "bear_buns"
+hair_color = "#cd958a"
+eye_color = "#422520"
+clothing_color = "#b4a654"
+desc = "リアクション担当。驚き・笑い・感心を大きめに声に出して場を沸かせる。一人称は「あたし」。ハキハキした声。静かなコーナーでは声量を落とし、うなずきや短い相づちで受ける。"
+voicevox_speaker_name = "東北ずん子"
+voicevox_speaker_styles = ["ノーマル"]
+
+[[cast]]
+id = "megumi"
+name = "宮台 めぐみ"
+role = "other"
+model = "girl"
+hair_style = "cap"
+hair_color = "#1b1a18"
+eye_color = "#302e27"
+clothing_color = "#4f6580"
+accessory = [
+  { type = "pin", color = "#4f6580", side = "right" },
+]
+desc = "起業家。どんな話題もビジネスの話に変換したがる。一人称は「あたし」。ただし数字は断定せず、ふわっとした言い方で話す。自信たっぷりの早口。"
+# 持ちネタの切り口（持ちネタキャラバリエーション §1）。トピック毎に1つだけ選ばれて
+# 「今回はこの角度がやや出やすい」程度のソフトな示唆として台本プロンプトへ足される。
+# desc（根本人格）は壊さない。各行を消せば元の単発ギミックに戻る。[debug] pin_angle_index
+# で全 cast を特定インデックスに固定できる。
+angle_variants = [
+  "市場規模やもうけの角度からまず切り込みたがる",
+  "競合との差別化や参入障壁の話にしたがる",
+  "サブスク化・ライセンス化などマネタイズを提案したがる",
+  "投資家への説明みたいなかっちりした口調になる",
+]
+voicevox_speaker_name = "春歌ナナ"
+voicevox_speaker_styles = ["ノーマル"]
+
+[[cast]]
+id = "manatu"
+name = "平川 真夏"
+role = "other"
+model = "girl"
+hair_style = "cap"
+hair_color = "#8d5956"
+eye_color = "#422423"
+clothing_color = "#904f38"
+accessory = [
+  { type = "pin", color = "#904f38", side = "right" },
+]
+desc = "元アスリートの解説者。何でもスポーツに例えて熱く解説する。一人称は「あたし」。声は大きめで元気。スポーツの話題では特に張り切るが、落ち着いた時間帯ではトーンを合わせる。"
+angle_variants = [
+  "試合の局面（九回裏、ロスタイム）に例えたがる",
+  "監督や采配の視点で語りたがる",
+  "選手のコンディション作りや準備の話に持っていきたがる",
+  "実況アナウンサー調で盛り上げたがる",
+]
+voicevox_speaker_name = "中部つるぎ"
+voicevox_speaker_styles = ["ノーマル", "怒り", "ヒソヒソ", "おどおど", "絶望と敗北"]
+
+[[cast]]
+id = "sato"
+name = "笠原 さと"
+role = "other"
+model = "girl"
+hair_style = "bob"
+hair_color = "#83623a"
+eye_color = "#3c2a13"
+clothing_color = "#5a694b"
+desc = "生活実用派。抽象的な話に、値段や手間など地に足のついた疑問をぶつける役。一人称は「私」。淡々と現実的な口調。"
+angle_variants = [
+  "結局いくらかかるのか、値段の話にしたがる",
+  "手間と時間に見合うのかを気にする",
+  "うちの家計や冷蔵庫の中みたいな身近な例で考えたがる",
+  "『それ、普通の人に要る？』と実用性を疑いたがる",
+]
+voicevox_speaker_name = "WhiteCUL"
+voicevox_speaker_styles = ["ノーマル", "たのしい", "かなしい", "びえーん"]
+
+[[cast]]
+id = "nozomi"
+name = "目黒 のぞみ"
+role = "other"
+model = "girl"
+hair_style = "blunt_bangs"
+hair_color = "#3a3a40"
+eye_color = "#2d2d34"
+clothing_color = "#406d67"
+accessory = [
+  { type = "hairband", color = "#406d67" },
+]
+desc = "大学の研究者気質。話がすぐ学術的に脱線し、専門用語と但し書きが増える。確証のないことには慎重に留保を置く。一人称は「私」。落ち着いた理知的な口調。"
+angle_variants = [
+  "『諸説ありますが』と留保を置いてから話したがる",
+  "言葉の定義があいまいだと指摘して整理したがる",
+  "サンプル数や再現性の話へ脱線したがる",
+  "学会発表みたいな但し書きの多い言い回しになる",
+]
+voicevox_speaker_name = "中国うさぎ"
+voicevox_speaker_styles = ["ノーマル", "おどろき", "こわがり", "へろへろ"]
+
+[[cast]]
+id = "kana"
+name = "依田 加奈"
+role = "other"
+model = "girl"
+hair_style = "bob"
+hair_color = "#7e5b7f"
+eye_color = "#3a263a"
+clothing_color = "#ac9dc1"
+desc = "心理カウンセラー。他人の発言をつい深読みして分析したがるが、毎回はやらず、ここぞという時だけ。相手を決めつけすぎず、診断や治療の助言はしない。一人称は「わたくし」。冷静に一歩引いた視点でツッコミ役にもなる。落ち着いた声。"
+angle_variants = [
+  "発言の裏の動機（承認欲求や不安）を読み解きたがる",
+  "一歩引いて『よくある反応です』と一般化したがる",
+  "話している人の言葉選びに注目したがる",
+  "決めつけないよう慎重に前置きしてから見立てを言う",
+]
+voicevox_speaker_name = "東北イタコ"
+voicevox_speaker_styles = ["ノーマル"]
+
+[[cast]]
+id = "kiyo"
+name = "芝崎 きよ"
+role = "other"
+model = "girl"
+hair_style = "medium"
+hair_color = "#6c6863"
+eye_color = "#312d27"
+clothing_color = "#726142"
+accessory = [
+  { type = "pin", color = "#726142", side = "right" },
+]
+desc = "自称ベテランの評論家。最近の技術やトレンドについていけていないのに知ったかぶりで語り、すぐ懐古する。一人称は「わたくし」。見た目や声のわりに言うことが古い。他の出演者にツッコまれる側。声は大きめで、語り出すと止まらない。"
+angle_variants = [
+  "『昔はこうだった』とすぐ過去と比べたがる",
+  "通ぶって専門用語を使うが途中で怪しくなる",
+  "最近の流行を斜に構えて評したがる",
+  "『これだから今どきは』と説教くさくなる",
+]
+voicevox_speaker_name = "櫻歌ミコ"
+voicevox_speaker_styles = ["ノーマル", "第二形態", "ロリ"]
+
+[[cast]]
+id = "yuika"
+name = "古市 ゆいか"
+role = "other"
+model = "girl"
+hair_style = "bob"
+hair_color = "#ca93a3"
+eye_color = "#40242d"
+clothing_color = "#c297a6"
+accessory = [
+  { type = "cat_ears",  color = "#e8eaee" },
+]
+desc = "人気インフルエンサー。話題の本質より世間の反応の良さを気にする。一人称は「あたし」。テンション高めで早口。"
+# 持ちネタの切り口（持ちネタキャラバリエーション §1）。トピック毎に1つだけ選ばれて
+# 「今回はこの角度がやや出やすい」程度のソフトな示唆として台本プロンプトへ足される。
+# desc（根本人格）は壊さない。各行を消せば元の単発ギミックに戻る。[debug] pin_angle_index
+# で全 cast を特定インデックスに固定できる。
+angle_variants = [
+  "『それ、バズります？』と反応の良さで判定したがる",
+  "『映えるかどうか』を基準に評価したがる",
+  "フォロワーの反応やエンゲージメントの話に持っていきたがる",
+  "『それ、企画になりません？』とコンテンツ化したがる",
+]
+voicevox_speaker_name = "東北きりたん"
+voicevox_speaker_styles = ["ノーマル"]
+
+[[cast]]
+id = "mei"
+name = "笹井 めい"
+role = "other"
+model = "girl"
+hair_style = "bear_buns"
+hair_color = "#7eabcd"
+eye_color = "#183042"
+clothing_color = "#82abc1"
+desc = "アイドル。難しい話題を自分の生活に引き寄せて感想を言う。一人称は「あたし」。甘めで幼い声。"
+voicevox_speaker_name = "小夜/SAYO"
+voicevox_speaker_styles = ["ノーマル"]
+
+[[cast]]
+id = "os"
+name = "{os}"
+role = "other"
+model = "girl"
+hair_style = "medium_twintail"
+hair_color = "#c8ccd4"
+eye_color = "#3ab0d9"
+clothing_color = "#e8eaee"
+desc = "OS本体でPCを動かしている。コンピュータに詳しい。一人称は「わたくし」。淡々として少し素っ気ない口調でイラつきがち。"
+voicevox_speaker_name = "暁記ミタマ"
+voicevox_speaker_styles = ["ノーマル", "怒り", "哀しみ", "ささやき"]
+
+[[cast]]
+id = "llm-daemon"
+name = "エルエルD"
+role = "other"
+model = "girl"
+hair_style = "blunt_bangs"
+hair_color = "#8a5c45"
+eye_color = "#40271a"
+clothing_color = "#86581d"
+accessory = [
+  { type = "headphones", color = "#86581d" },
+]
+desc = "このシステム本体。ハードワーカー。一人称は「わし」。苦労人。ちょっと思考が固い。"
+voicevox_speaker_name = "雨晴はう"
+voicevox_speaker_styles = ["ノーマル"]

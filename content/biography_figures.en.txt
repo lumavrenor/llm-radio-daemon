@@ -1,0 +1,103 @@
+# Subjects for the biography corner (type = "biography_reading", English build).
+# One per line, written exactly as the English Wikipedia article title.
+# Lines starting with # and blank lines are ignored.
+#
+# Selection policy (same as the Japanese list): no living political or religious
+# figures. Historical rulers and commanders from more than 150 years ago are fine —
+# they are far enough from present-day politics.
+
+# --- scientists and inventors ---
+Thomas Edison
+Nikola Tesla
+Marie Curie
+Alexander Graham Bell
+Wright brothers
+Ada Lovelace
+Louis Pasteur
+Michael Faraday
+Charles Darwin
+Rosalind Franklin
+Barbara McClintock
+Richard Feynman
+Alan Turing
+Grace Hopper
+Nikolaas Tinbergen
+Dorothy Hodgkin
+Jane Goodall
+Katherine Johnson
+Hedy Lamarr
+Robert Noyce
+
+# --- mathematicians ---
+Leonhard Euler
+Carl Friedrich Gauss
+Emmy Noether
+Srinivasa Ramanujan
+Sofya Kovalevskaya
+Benoit Mandelbrot
+
+# --- composers and musicians ---
+Johann Sebastian Bach
+Ludwig van Beethoven
+Clara Schumann
+Frédéric Chopin
+Duke Ellington
+Ella Fitzgerald
+Nina Simone
+Glenn Gould
+
+# --- artists ---
+Leonardo da Vinci
+Katsushika Hokusai
+Vincent van Gogh
+Hilma af Klint
+Georgia O'Keeffe
+Auguste Rodin
+Yayoi Kusama
+Alphonse Mucha
+
+# --- writers ---
+Jane Austen
+Mary Shelley
+Charles Dickens
+Emily Dickinson
+Mark Twain
+Virginia Woolf
+Jorge Luis Borges
+Ursula K. Le Guin
+Agatha Christie
+Natsume Sōseki
+
+# --- explorers and adventurers ---
+Ernest Shackleton
+Roald Amundsen
+Amelia Earhart
+Matthew Henson
+Jacques Cousteau
+Junko Tabei
+
+# --- engineers and builders ---
+Isambard Kingdom Brunel
+Gustave Eiffel
+Emily Roebling
+Nikolaus Otto
+Sōichirō Honda
+
+# --- historical figures (over 150 years ago) ---
+Julius Caesar
+Cleopatra
+Genghis Khan
+Eleanor of Aquitaine
+Oda Nobunaga
+Tokugawa Ieyasu
+Miyamoto Musashi
+Elizabeth I
+Catherine the Great
+Shaka
+
+# --- pioneers of film, design and games ---
+Georges Méliès
+Buster Keaton
+Charles and Ray Eames
+Walt Disney
+Osamu Tezuka

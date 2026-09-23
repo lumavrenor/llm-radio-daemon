@@ -1,0 +1,34 @@
+# 読みを固定したい語の辞書（英語版 / [tts] backend = "kokoro"）。
+# config.toml の [tts] lexicon_file にこのファイルを指定すると読み込まれる。
+#
+#   1行 "単語<TAB>IPA"。# で始まる行と空行は無視される。
+#   大文字小文字は区別しない（小文字で照合する）。
+#
+# なぜ要るか
+#   辞書外の語は g2p_en による推定で読まれる。破綻はしないが正しいとは限らない
+#   （実測: Ryuichi -> ɹijˈuki、gemma -> ʤˈɛmə と軟音の g になる）。
+#   アーティスト名や選手名は実行時に無限に来るので全部は書けない。
+#   番組の看板になる語＝毎日出てくる語だけをここで押さえる。
+#
+# 書き方
+#   IPA は Kokoro の語彙で書く。強勢は ˈ（第一）と ˌ（第二）を母音の直前に置く。
+#   二重母音は1文字表記: A=eɪ  I=aɪ  O=oʊ  W=aʊ  Y=ɔɪ
+#   よく使う子音: ʧ=ch  ʤ=j  ʃ=sh  ʒ=zh  θ=th(無声)  ð=th(有声)  ŋ=ng  ɹ=r  ɾ=t(はじき音)
+#   放送中に辞書外の語があると WARNING に推定結果が出るので、それを直してここへ貼るのが早い。
+
+# --- LLM まわり（{model} / {engine} 差し込みでキャストが名乗る） ---
+qwen	kwˈɛn
+qwen3	kwˈɛn θɹˈi
+gemma	ɡˈɛmə
+mistral	mˈɪstɹəl
+ollama	Olˈɑmə
+llamacpp	lˈɑmə sˌiplˌʌsplˈʌs
+onnx	ˈɑnɪks
+tokenizer	tˈOkənˌIzəɹ
+quantization	kwˌɑntɪzˈAʃən
+
+# --- 日本語の固有名詞（推定だと崩れやすい） ---
+ohtani	Otˈɑni
+yamamoto	jɑmɑmˈOtO
+ryuichi	ɹjuˈiʧi
+sakamoto	sɑkɑmˈOtO

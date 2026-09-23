@@ -1,0 +1,315 @@
+﻿# Example program schedule (content) config for the English broadcast.
+# Copy it to config/en/config_content.toml (the real file is gitignored, not
+# committed). Loaded automatically from the config.toml in the same directory.
+#
+#   copy config\en\config_content.toml.example config\en\config_content.toml
+#
+# Key meanings are identical to config/ja/config_content.toml.example — see
+# that file for the full reference. This one only documents what's specific
+# to the English broadcast.
+#
+# [[content]] entries are evaluated in the order written; the first one that
+# is enabled and inside its schedule window becomes the active content for
+# that time. If windows overlap, the earlier entry wins. Omitting schedule
+# makes an entry always eligible (the fallback for any time no other entry
+# covers — put it last).
+#
+# label is what the DJ says out loud when a request (request.bat en now
+# <corner>) comes in. If omitted, the raw type is read aloud instead, so
+# write it as a natural English phrase (something that reads well after
+# "let's head over to ..."; articles are fine to include).
+#
+# tone_hint is also written in English — it's inserted into the prompt as-is.
+#
+# Note: if a [[content]] entry's max_speakers exceeds the number of [[cast]]
+# entries in config_cast.toml, startup fails. The English roster has 19
+# members, so there's headroom.
+#
+# Requests (temporary schedule override)
+# ------------------------------------
+#   request.bat en now --list                  list requestable corners
+#   request.bat en now "the papers corner"     switch to it now (30 min)
+#   request.bat en now arxiv --for 2h          type also works; --for sets the duration
+#   request.bat en now --clear                 return to the schedule early
+
+# Weather corner. Needs latitude/longitude in config.toml's [weather] (disabled = no items
+# at all). The weather itself is fetched and cached by weather.py; filler chat reads the
+# same cached value. Since one item covers "location + date + hour", a long schedule window
+# still only produces one item (filler fills the rest) — put this first if it overlaps another
+# corner's window.
+[[content]]
+type = "weather"
+label = "the weather corner"
+schedule = ["07:00-07:20", "18:00-18:20"]
+background = "dust"
+tone_hint = "A weather slot. Read out only the observations in the copy, calmly, then let it drift into what the day is good for: what to wear, how it feels outside. Never state a forecast beyond what is given."
+min_speakers = 3
+max_speakers = 4
+poll_interval_sec = 600
+
+# Radio drama reading. Writing happens in a separate process:
+#   python -m llm_radio_daemon.generated_drama_writer run --auto --config config/en/config.toml
+# — this corner only reads back finished text (zero LLM load during the broadcast itself).
+# It's safe to enable even with nothing written yet: once the generated backlog runs out it
+# falls back to filler / the next corner automatically (data_dir starts out empty; the
+# Japanese backlog is a different format and language, so it can't be reused here).
+#
+# The script format is defined jointly by writer.py's English prompt and parser.py's parsing:
+#   dialogue    Name: "what they say"     (ASCII colon + straight quotes)
+#   stage dir   (a short line)            (parentheses, or a short plain sentence)
+#   sound cue   CRASH!                    (its own line, in all caps)
+# Changing only one side breaks the other (everything gets read as narration), so keep them in sync.
+[[content]]
+type = "generated_drama"
+label = "the radio play"
+schedule = ["04:00-06:00"]
+stream = ["dronezone"]          # a quiet, vocal-free station behind the reading
+narrator_cast_id = "assistant"  # [[cast]] role that reads the narration (unset/absent = first drawn)
+data_dir = "data/generated_drama_data_en"
+dialogue_by_character = true
+chunk_target_chars = 700        # English carries less per character than Japanese (400), so aim higher
+chunk_max_chars = 900
+chunk_min_chars = 200
+chunks_per_batch = 4
+pause_ms = 400
+pause_scene_ms = 900
+pause_se_ms = 700
+duck_db = -18.0
+transition_pause_before_ms = 2500  # before a scene change: silence after audio stops, before fading out
+transition_pause_after_ms = 2500   # after a scene change: pause after fading in, before reading starts
+# The rest below is only used by the writer batch job (generated_drama_writer); the
+# broadcast side never reads it.
+chapters = 8
+scenes_per_chapter = 4
+scene_target_chars = 2800       # target chars per scene (about 5 minutes read aloud; ~1.75x the Japanese value)
+writer_timeout_sec = 600
+auto_write = true
+auto_concept = true
+concept_min_writing = 1
+title_style = "short"           # English genre fiction doesn't have the long descriptive-title convention
+# Pool of tropes the writer combines at random when planning a new story. Omitting this
+# falls back to config.py's default (Japanese web-novel tropes), so set this for English.
+genres = [
+  "portal fantasy", "cosy small-town mystery", "generation ship",
+  "haunted-house gothic", "heist caper", "post-collapse road story",
+  "academy fantasy", "detective noir", "quiet first contact",
+]
+trope_pool = [
+  "secretly the strongest", "reluctant chosen one", "second time around",
+  "amnesia", "hiding what they can do", "unremarkable but unmatched",
+  "only wants a quiet life", "thrown out and better for it",
+  "the useless gift that is not", "a very ordinary previous life",
+  "fixing the place from the inside", "an animal that is not an animal",
+]
+relationship_pool = [
+  "grew up next door", "an arranged match", "a marriage of convenience",
+  "sat at the next desk", "servant and master", "rivals",
+  "one of them is hiding who they are", "the younger one who latched on",
+  "the senior who never thaws", "the one they were hired to protect",
+]
+twist_pool = [
+  "the other one came back too", "the love interest is behind it",
+  "the world is a sequel to a game", "they have been swapped",
+  "the background character is not one", "the loop resets on death",
+  "the prophecy is off by one",
+]
+
+[[content]]
+type = "rss"
+label = "the news"
+schedule = ["06:00-08:00"]
+background = "coderain"
+tone_hint = "A bright daytime tone, easy to leave on in the background. Do not dig into any one story for long; keep it short and hand off to the next. Do not make fun of politics, international affairs, or named individuals and organisations. Skim past anything sensitive."
+min_speakers = 8
+max_speakers = 10
+poll_interval_sec = 300
+# General-interest English-language feeds: tech, science, gadgets, games, and everyday life.
+rss_urls = [
+  "https://feeds.arstechnica.com/arstechnica/index",               # Ars Technica (tech, in-depth)
+  "https://www.theverge.com/rss/index.xml",                        # The Verge (gadgets, internet culture)
+  "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",  # BBC Science
+  "https://www.engadget.com/rss.xml",                              # Engadget (gadgets)
+  "https://gizmodo.com/feed",                                      # Gizmodo (science, general interest)
+  "https://www.eurogamer.net/feed",                                # Eurogamer (games)
+  "https://lifehacker.com/feed/rss",                               # Lifehacker (life & work tips)
+  "https://www.sciencedaily.com/rss/top/science.xml",              # ScienceDaily (research press releases)
+  "https://feeds.npr.org/1001/rss.xml",                            # NPR News (general news)
+]
+max_entries_per_feed = 10
+fetch_article_body = true   # fetch the full article body (a feed with one-sentence entries won't be enough on its own)
+max_body_chars = 1000       # cap on article body chars passed to the LLM
+# Note: llm_radio_daemon/sources/rss.py's _BODY_HINTS (per-domain extraction rules) currently
+# only covers Japanese sites. The feeds above fall back to a "densest <p> cluster" heuristic
+# as unknown domains. If one extracts poorly, use scripts/rss_body_probe.py to investigate and
+# add a hint (see docs/rss-body-extraction-log.md).
+
+[[content]]
+type = "hackernews"
+label = "tech news"
+schedule = ["08:00-10:00"]
+background = "grid+coderain"      # layer in code-rain during the tech slot
+tone_hint = "Morning tech news. Introduce what developers are talking about in a calm, serious tone. Go one step into how it works and why it matters, but never leave a listener behind. Do not bluff about the parts you do not understand."
+min_speakers = 8
+max_speakers = 10
+poll_interval_sec = 300
+max_items_per_poll = 10           # how many of the newest stories to check per poll (default 10)
+fetch_article_body = true         # fetch the linked page's article text (default false = title-only placeholder).
+                                   # Shares rss.py's generic extractor (no domain hints needed); JS-rendered pages
+                                   # and video links still fall back to the placeholder.
+
+[[content]]
+type = "arxiv"
+label = "the papers corner"
+schedule = ["10:00-14:00"]
+background = "logs"               # the daemon's own logs run behind this corner
+tone_hint = "An early afternoon papers corner. Read a new piece of research slowly, without rushing. Unpack the jargon and say plainly what you found interesting. Do not hype it as a breakthrough; keep your distance from unproven claims."
+min_speakers = 8
+max_speakers = 10
+poll_interval_sec = 300
+categories = ["cs.AI", "cs.LG"]   # arXiv categories (also the default when omitted); cs.CL / stat.ML etc. can be added
+max_results = 10
+
+[[content]]
+type = "radio"
+label = "the music hour"
+schedule = ["14:00-16:30"]
+stream = ["groovesalad", "spacestation"]
+tone_hint = "A loose stretch of time with music playing. Do not reach for a punchline; rambling, aimless chat is exactly right. Keep your voices low, at the temperature of something playing in the corner of a room."
+song_talk = "back"               # a short remark once the song ends
+min_speakers = 3
+max_speakers = 4
+
+[[content]]
+type = "sports"                   # MLB results digest (see docs/sports-news.md)
+label = "the sports round-up"
+schedule = ["16:30-16:40"]        # only 3 watched players, up to 3 finished games a day (0 off-season) — keep it short
+tone_hint = "An evening sports digest. Carry the afterglow of the broadcast: results and standout players, with momentum. Do not inflate scores or numbers; stay inside what you actually know. Don't root for or criticize any particular player or team — just enjoy the results and the play."
+min_speakers = 8
+max_speakers = 10
+poll_interval_sec = 300
+
+# Players to watch. player is how the name appears in the script; player_en is the name used
+# to query the MLB Stats API. Both can be the same for the English broadcast (the Japanese
+# broadcast needs both since it uses the Japanese name in-script and the English name for the API).
+[[content.sports_watch]]
+player = "Shohei Ohtani"
+player_en = "Shohei Ohtani"
+
+[[content.sports_watch]]
+player = "Aaron Judge"
+player_en = "Aaron Judge"
+
+[[content.sports_watch]]
+player = "Paul Skenes"
+player_en = "Paul Skenes"
+
+# Quiet stretch between shows. Music never runs out, so it soaks up the time the
+# short sports slot and the evening weather window don't cover.
+[[content]]
+type = "radio"
+label = "the evening lull"
+schedule = ["16:40-18:00", "18:20-20:00"]
+stream = ["dronezone", "spacestation"]
+tone_hint = "Quiet time between shows in the early evening. Don't dwell on the music, just a light remark now and then."
+song_talk = "back"
+min_speakers = 3
+max_speakers = 4
+
+# Reading corner. The English source is Project Gutenberg (selected via [locale] lang = "en").
+# On first run it fetches the catalog (pg_catalog.csv.gz, gzipped 5.5MB); after that it uses
+# corpus_dir's local catalog.csv. Only the chosen book's text is lazily fetched and cached.
+# To pre-fetch a few books ahead of time:
+#   python -m scripts.fetch_gutenberg --limit 5 --out data/gutenberg
+[[content]]
+type = "literary_reading"
+label = "the reading"
+schedule = ["20:00-20:30"]
+background = "dust"               # keep motion minimal during the reading; particles only
+tone_hint = "The reading, at the start of the evening. Drop your voice and read as though testing the weight of each phrase. Keep the interjections to a minimum and let the silences stand."
+min_speakers = 2
+max_speakers = 2
+corpus_dir = "data/gutenberg"     # the default is data/aozora, so this must be set explicitly
+auto_fetch = true                 # fetch a work automatically at runtime if not already in corpus_dir
+prefetch_next = true              # prefetch the next work while the current one is being read
+work_selector = "llm"             # has Ollama pick from a shortlist of the ~60k candidates.
+                                  # "random" tends to land on things ill-suited to reading aloud
+                                  # (encyclopedias, letter collections, catalogs).
+llm_candidate_count = 30
+beat_interval = 5
+chunk_target_chars = 700          # English carries less per character than Japanese (250), so aim higher
+chunk_max_chars = 900
+chunk_min_chars = 200
+summary_max_chars = 800
+comment_lines = [4, 8]
+duck_db = -18.0
+pause_ms = 400
+pause_chapter_ms = 800
+pause_beat_ms = 600
+reread_after_days = 30
+# ruby_mode / allow_translations are Aozora-only settings; don't set them here
+# (English has no ruby annotations, and Gutenberg's catalog has no translator field).
+#
+# gutenberg.org discourages bulk automated fetching and publishes mirrors for that reason.
+# This show's fetch volume is "one book per session" so the default (the main site) is fine
+# as-is, but to point at a mirror instead, set both of these ("{id}" is replaced with the work id):
+# catalog_url = "https://gutenberg.pglaf.org/cache/epub/feeds/pg_catalog.csv.gz"
+# text_url_template = "https://gutenberg.pglaf.org/cache/epub/{id}/pg{id}.txt"
+
+[[content]]
+type = "biography_reading"        # biography talk (Wikipedia) — see docs/spec-biography-reading.md
+label = "the biography corner"    # reads en.wikipedia, since [locale] lang = "en"
+schedule = ["20:30-23:00"]
+host_id = "host"
+min_speakers = 8
+max_speakers = 10
+tone_hint = "A late-evening biography corner. Settled and unhurried. Be impressed by the life you are reading, tease it now and then, and be surprised alongside the listener. Never paper over what you do not know with a flat assertion."
+data_dir = "data/wiki_bio_en"
+figures_file = "content/biography_figures.en.txt"   # article titles on the English Wikipedia
+chunk_target_chars = 900          # English carries less per character than Japanese (700), so aim higher
+chunk_max_chars = 1300
+chunk_min_chars = 250
+summary_max_chars = 1000
+segment_lines = [5, 10]
+reread_after_days = 60
+
+[[content]]
+type = "worry_consultation"
+label = "the problems slot"
+schedule = ["23:00-24:00"]
+background = "dust"               # calm particles only, late at night
+tone_hint = "The late-night problems slot. Not a real cry for help — the kind of call-in bit a comedian-hosted late show runs. Read every letter as coming from a listener who just wants a laugh, not real advice. The panel riffs on it fast, with teasing and mock sympathy; no somber listening, no tidy advice to wrap it up."
+min_speakers = 8
+max_speakers = 10
+poll_interval_sec = 30
+# Candidate letter-writer attributes. Drawn by weighted random choice in Python, not the LLM
+# (see docs/spec-worry-consultation.md). Omit to use the per-language defaults in
+# sources/worry_consultation.py.
+age_groups = [
+  "in their twenties", "in their thirties", "in their forties", "fifty or over",
+]
+roles = [
+  "works in an office", "is a student", "is at home with the family",
+  "is self-employed", "works shifts", "is between jobs",
+]
+# weight defaults to 1 if omitted. Relationships and work are common topics, so weighted higher.
+themes = [
+  { name = "people around them", weight = 3 },
+  { name = "work",               weight = 3 },
+  { name = "family",             weight = 2 },
+  { name = "the future",         weight = 2 },
+  { name = "money",              weight = 1 },
+  { name = "someone they like",  weight = 2 },
+  { name = "a habit they cannot shift", weight = 2 },
+]
+
+[[content]]
+type = "wikimedia"               # omitting schedule makes this the fallback (e.g. the small hours)
+label = "the odds and ends"
+stream = ["groovesalad", "spacestation"]
+tone_hint = "Filler chat with no fixed slot. Assume someone who is not sleeping has left this on. Keep it loose, wander off topic often. It does not need a punchline or a landing."
+min_speakers = 8
+max_speakers = 10
+poll_interval_sec = 30
+# Wikipedia language editions to draw from. Omit to use only [locale] lang's edition.
+# ["ja", "en"] mixes both in (Japanese articles turning up in the English broadcast).
+wikis = ["en"]

@@ -1,0 +1,80 @@
+# Model weights
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.onnx
+*.gguf
+
+# TTS model storage ([tts] model_dir, default kokoro_models).
+# kokoro-v1.0.onnx / voices-v1.0.bin / config.json are fetched automatically on
+# first run, so ignore the whole directory (config.json wouldn't otherwise be
+# caught by the extension rules above).
+kokoro_models/
+
+# Audio / recordings
+*.mp3
+*.wav
+*.flac
+*.ogg
+*.m4a
+*.aac
+
+# Fonts (license terms are usually unclear, so keep them out)
+*.ttf
+*.otf
+*.ttc
+
+# Local config / DB
+# Each language keeps its own set of three files under config/<lang>/
+# (config/ja/, config/en/). The 3 lines below have no slash, so they match at
+# any depth, including config/ja/config.toml etc. Only the matching
+# *.toml.example files in the same directory are committed.
+config.toml
+config_cast.toml
+config_content.toml
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+# Manual backups (llm_radio_daemon.ja.db.bak, *.db.before_xxx, etc.).
+# *.db alone would miss anything with a suffix after the extension.
+*.db.*
+logs/
+# Also matched by extension so a stray log file left at the repo root isn't
+# missed (logs/ itself is already covered by the rule above).
+*.log
+
+# Data fetched or generated at runtime (Aozora/Gutenberg text, Wikipedia
+# bodies, generated drama scripts, window state, etc.). Every module that
+# writes here creates its own directories with os.makedirs, so it's safe to
+# ignore the whole tree.
+data/
+# Leftover location from when data_dir used an old relative path (had been
+# tracked by mistake). Still ignored to be safe.
+/generated_drama_data/
+/novel_data/
+
+# Local runtime state
+.claude/scheduled_tasks.lock
+
+# Scratch directory for RSS body-extraction investigation (raw HTML/reports
+# written by scripts/rss_body_probe.py)
+work/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
