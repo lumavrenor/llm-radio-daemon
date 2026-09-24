@@ -12,8 +12,8 @@ ducks whenever someone is talking.
 This isn't TV — it's "radio with a picture." Talk is the main act, BGM is
 background. The goal is a show that still works as a show even with the screen off.
 
-This is a personal hobby project. I don't respond to questions or requests
-via Issues, DMs, etc.
+This is a personal hobby project. I don't respond to questions or requests.
+However, reports of rights/licensing concerns or problems are welcome via GitHub Issues.
 
 Written entirely in Python. The 3D display runs on the
 [Ursina](https://www.ursinaengine.org/) engine, and character motion (idle
