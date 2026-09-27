@@ -19,6 +19,7 @@ Windows タスクスケジューラで叩く。放送プロセス側からは決
 
 from __future__ import annotations
 
+import copy
 import datetime
 import logging
 
@@ -65,6 +66,67 @@ _REWRITE_FORMAT_ISSUE_EN = (
 
 def _rewrite_format_issue() -> str:
     return language.pick(ja=_REWRITE_FORMAT_ISSUE_JA, en=_REWRITE_FORMAT_ISSUE_EN)
+
+
+# --- ループ（同じ行の繰り返し）の検出 --------------------------------------
+# 小型モデル（qwen3.5:4b, granite4.2:3b）は、1シーンの中で同じ数行のやり取りを
+# 何周も繰り返すことがある（bench: 1シーンで53行が重複）。自己チェックはこれを
+# 見逃すので、プログラム側で数えて不合格にし、繰り返した行を指摘して書き直させる。
+# 「バタン」のような短い効果音は繰り返して当然なので数えない。
+_LOOP_MIN_LINE_CHARS = 10
+# 2回目以降の出現がこの行数に達したらループとみなす。gemma4:e2b は1本（8シーン）
+# 全体でも重複が0〜1行なので、普通の台本は引っかからない。
+_LOOP_MAX_REPEATS = 3
+_LOOP_QUOTE_LINES = 3
+_LOOP_QUOTE_CHARS = 30  # 指摘は _ISSUE_CHARS（200字）で切られるので、3行引いても収まる長さに
+
+
+def _repeated_lines(body: str) -> tuple[list[str], int]:
+    """2回以上出てくる行（初出順）と、2回目以降の出現の合計行数を返す。"""
+    seen: dict[str, int] = {}
+    order: list[str] = []
+    for line in body.splitlines():
+        s = line.strip()
+        if len(s) < _LOOP_MIN_LINE_CHARS:
+            continue
+        seen[s] = seen.get(s, 0) + 1
+        if seen[s] == 2:
+            order.append(s)
+    return order, sum(n - 1 for n in seen.values() if n > 1)
+
+
+def _loop_issue(repeated: list[str]) -> str:
+    lines = [
+        s[:_LOOP_QUOTE_CHARS] + ("…" if len(s) > _LOOP_QUOTE_CHARS else "")
+        for s in repeated[:_LOOP_QUOTE_LINES]
+    ]
+    quoted_ja = "".join("「" + s + "」" for s in lines)
+    quoted_en = ", ".join('"' + s + '"' for s in lines)
+    return language.pick(
+        ja=(
+            f"同じ行を何度も繰り返している（ループ）。次の行は1回だけにすること：{quoted_ja}。"
+            "同じやり取りに戻らず場面を先へ進め、「終わり方」へ着地させること"
+        ),
+        en=(
+            "The same lines are repeated over and over (a loop). Write each of these only once: "
+            f"{quoted_en}. "
+            "Do not return to the same exchange; move the scene on and land it on the ending"
+        ),
+    )
+
+
+def _drop_repeated_lines(body: str) -> str:
+    """同じ行の2回目以降を落とす（ループしたまま採用するときの最後の手当て）。"""
+    seen: set[str] = set()
+    out: list[str] = []
+    for line in body.splitlines():
+        s = line.strip()
+        if len(s) >= _LOOP_MIN_LINE_CHARS:
+            if s in seen:
+                continue
+            seen.add(s)
+        out.append(line)
+    return "\n".join(out)
 
 
 def _trim_issues(issues: list[str]) -> list[str]:
@@ -122,6 +184,22 @@ _DESIGN_SCHEMA = {
 }
 
 
+# 全体設計の章が指定より少ないとき、設計をやり直す回数（初回を含む）。
+_DESIGN_ATTEMPTS = 3
+
+
+def _design_schema(chapter_count: int) -> dict:
+    """章の数を固定した全体設計のスキーマ。
+
+    プロンプトで「全N章」と頼むだけだと、小型モデル（phi4-mini, qwen3.5:4b）は
+    章を1つしか返さないことがある。構造化出力で個数まで縛る。
+    """
+    schema = copy.deepcopy(_DESIGN_SCHEMA)
+    schema["properties"]["chapters"]["minItems"] = chapter_count
+    schema["properties"]["chapters"]["maxItems"] = chapter_count
+    return schema
+
+
 def _beats_schema(scene_count: int) -> dict:
     return {
         "type": "object",
@@ -150,8 +228,12 @@ def _beats_schema(scene_count: int) -> dict:
 
 _SCENE_SCHEMA = {
     "type": "object",
-    "properties": {"body": {"type": "string"}, "summary": {"type": "string"}},
-    "required": ["body", "summary"],
+    # 本文のキーは script の1つだけ。body と summary の2キーにしていた頃、
+    # granite4.2:3b / phi4-mini は body に1文だけ書き、シーンの中身を summary に
+    # 書いてしまい、1本も書き切れなかった（bench 2026-09-26）。要約はチェック役も
+    # 返すので（_check_scene）、執筆の呼び出しでは頼まない。
+    "properties": {"script": {"type": "string"}},
+    "required": ["script"],
 }
 
 _CHECK_SCHEMA = {
@@ -211,14 +293,32 @@ class GeneratedDramaWriterService:
         n_chapters = chapters or self._p.chapters
         n_scenes = scenes_per_chapter or self._p.scenes_per_chapter
 
-        design = chat_json(
-            self._llm,
-            self._design_prompt(title, premise, n_chapters, n_scenes),
-            _DESIGN_SCHEMA,
-            timeout_sec=self._timeout,
-        )
-        if design is None:
-            logger.error("generated_drama_writer: failed to generate the overall design")
+        # 章が足りない設計は、そのまま使うと黙って短いドラマになる（1章しか返さない
+        # モデルがいる）。スキーマで個数を縛ったうえで、それでも足りなければやり直す。
+        # 形式を守れない相手（format を無視する等）にはスキーマが効かないので、ここが最後の砦。
+        design = None
+        for attempt in range(_DESIGN_ATTEMPTS):
+            design = chat_json(
+                self._llm,
+                self._design_prompt(title, premise, n_chapters, n_scenes),
+                _design_schema(n_chapters),
+                timeout_sec=self._timeout,
+            )
+            if design is None:
+                logger.error("generated_drama_writer: failed to generate the overall design")
+                return None
+            got = len(design.get("chapters", []) or [])
+            if got >= n_chapters:
+                break
+            logger.warning(
+                "generated_drama_writer: the design has %d chapter(s), %d requested (%d/%d). Redesigning",
+                got, n_chapters, attempt + 1, _DESIGN_ATTEMPTS,
+            )
+        else:
+            logger.error(
+                "generated_drama_writer: the design still has fewer chapters than the %d requested. Not launching it",
+                n_chapters,
+            )
             return None
 
         characters = self._assign_voices(
@@ -229,9 +329,12 @@ class GeneratedDramaWriterService:
             return None
 
         chapters_raw = design.get("chapters", [])
+        # 章番号は LLM の値を使わず並び順で振る。小型モデル（gemma4:e2b）は
+        # 2章とも chapter=1 と書くことがあり、その値を信じると第1章を書き終えた
+        # 時点で「全シーン完了」と判定され、黙って半分で完結してしまう。
         plan = [
             {
-                "chapter": int(c.get("chapter", i + 1)),
+                "chapter": i + 1,
                 "title": str(
                     c.get("title")
                     or language.pick(ja=f"第{i + 1}章", en=f"Chapter {i + 1}")
@@ -381,6 +484,7 @@ class GeneratedDramaWriterService:
                     chapter, scene, _MAX_SCENE_ATTEMPTS, " / ".join(issues) or "reason unknown",
                 )
                 ok = True
+                body = self._drop_loop_for_adoption(body, chapter, scene)
 
         scene_id = self._store.save_generated_drama_scene(
             generated_drama_id, chapter, scene, body, summary, ready=ok
@@ -428,6 +532,7 @@ class GeneratedDramaWriterService:
         body, summary = written
 
         ok, issues, summary = self._check_scene(data, plan, beat, body, summary, chapter)
+        ok, issues = self._check_loop(body, ok, issues)
         if not ok:
             logger.warning(
                 "generated_drama_writer: the check raised issues (%s). Rewriting", " / ".join(issues) or "reason unknown"
@@ -440,7 +545,35 @@ class GeneratedDramaWriterService:
                 ok, issues, summary = self._check_scene(
                     data, plan, beat, body, summary, chapter
                 )
+                ok, issues = self._check_loop(body, ok, issues)
         return body, summary, ok, issues
+
+    @staticmethod
+    def _check_loop(body: str, ok: bool, issues: list[str]) -> tuple[bool, list[str]]:
+        """自己チェックの結果に、プログラム側のループ検出を重ねる（通っていても落とす）。"""
+        repeated, extra = _repeated_lines(body)
+        if extra < _LOOP_MAX_REPEATS:
+            return ok, issues
+        logger.warning(
+            "generated_drama_writer: the scene repeats the same lines (%d repeated lines). Failing the check",
+            extra,
+        )
+        return False, _trim_issues([_loop_issue(repeated), *issues])
+
+    @staticmethod
+    def _drop_loop_for_adoption(body: str, chapter: int, scene: int) -> str:
+        """チェックを通らないまま採用する原稿がループしていたら、繰り返した行を落とす。
+
+        書き直しても直らなかったループを、そのまま放送に流さないための最後の手当て。
+        """
+        _, extra = _repeated_lines(body)
+        if extra < _LOOP_MAX_REPEATS:
+            return body
+        logger.warning(
+            "generated_drama_writer: chapter %d scene %d is adopted with a loop; removed %d repeated lines",
+            chapter, scene, extra,
+        )
+        return _drop_repeated_lines(body)
 
     # --- 対象シーンの決定 -------------------------------------------------
 
@@ -513,13 +646,13 @@ class GeneratedDramaWriterService:
         if result is None:
             logger.error("generated_drama_writer: failed to generate the text of chapter %d scene %d", chapter, scene)
             return None
-        body = _clean_body(str(result.get("body", "")))
+        body = _clean_body(str(result.get("script", "")))
         if len(body) < _MIN_SANE_BODY:
             logger.error(
                 "generated_drama_writer: the generated text is too short (%d chars). Not writing it this time", len(body)
             )
             return None
-        return body, str(result.get("summary", "")).strip()
+        return body, ""  # 要約はチェック役が返す（_check_scene）
 
     # --- 4. チェック ------------------------------------------------------
 
@@ -695,6 +828,7 @@ unresolved.
                         chapter, scene, " / ".join(issues) or "reason unknown",
                     )
                     ok = True
+                    body = self._drop_loop_for_adoption(body, chapter, scene)
                 else:
                     logger.error(
                         "generated_drama_writer: chapter %d scene %d still fails the check after rewriting. "
@@ -710,6 +844,7 @@ unresolved.
             if written is None:
                 return False
             body, summary = written
+            summary = summary or existing["summary"]  # チェックを省くので、要約は元のものを引き継ぐ
             ok = True  # --no-check：チェックを省略。放送前に人手で確認すること
 
         scene_id = self._store.save_generated_drama_scene(generated_drama_id, chapter, scene, body, summary, ready=ok)
@@ -1000,7 +1135,8 @@ Outline: {chapter_plan.get('synopsis', '')}
 - アルファベットや中国語の漢字を使わず、すべて日本語（かな・常用漢字・カタカナ）で書くこと
   （「谁」「哈」「那」などの中国語字を混ぜない）
 - 章題・シーン番号・見出しを本文に書かないこと。いきなり本文から始めること
-- summary には、このシーンで起きたことを 150 字以内で（次のシーンを書くための引き継ぎ）
+- 出力の JSON の script には、**上の形式で書いた台本の全文**を入れること。
+  要約・あらすじ・説明ではなく、そのまま朗読するセリフとト書きそのものを、最初の行から最後の行まで書くこと
 """
 
     def _scene_prompt_en(
@@ -1103,8 +1239,9 @@ and short shouts, and let the quiet stretches sit against them.
   ("half past two", not "2:30"). The speech synthesiser cannot read a colon in a number
 - Do not put a chapter title, a scene number or any heading in the prose.
   Start straight into the scene
-- In summary, put what happened in this scene in forty words or fewer
-  (it is the handover for writing the next scene)
+- In script, put the **whole script of the scene** in the format above: not a summary,
+  an outline or a description, but the actual lines and stage directions to be read out,
+  from the first line to the last
 """
 
     def _check_prompt(

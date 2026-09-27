@@ -253,8 +253,31 @@ def _locate(text: str, name: str, *, nearest_to_end: bool) -> int:
     return hits[-1] if nearest_to_end else hits[0]
 
 
+# 「エレノア・フォン・ルミナス」を本文では「エレノア」と略して書いてくる（小型モデルは
+# プロンプトで「略さない」と頼んでも守らない）。区切り記号の手前を呼び名に足す。
+_NAME_PART_SEP_RE = re.compile(r"[・＝=]")
+# 「ヴァレリウス男爵」→「ヴァレリウス」のように、名前に付けた敬称・爵位も本文では落ちる。
+_NAME_TITLE_RE = re.compile(
+    r"(?:男爵|子爵|伯爵|侯爵|公爵|大公|辺境伯|騎士|卿|殿下|陛下|王子|王女|皇子|皇女|姫|"
+    r"令嬢|夫人|閣下|殿|様|さま|さん|くん|君|ちゃん|先生|先輩|博士|師匠)$"
+)
+
+
+def _names(c: GeneratedDramaCharacter) -> list[str]:
+    """本文から探す呼び名（長い順）。日本語は ``名・姓`` の名だけの略記と、
+    敬称・爵位を外した形も含める。"""
+    if language.current() == "en":
+        return c.names
+    out = list(c.names)
+    for n in c.names:
+        for short in (_NAME_PART_SEP_RE.split(n, 1)[0].strip(), _NAME_TITLE_RE.sub("", n).strip()):
+            if len(short) >= 2:
+                out.append(short)
+    return sorted(dict.fromkeys(out), key=len, reverse=True)
+
+
 def _mentions(text: str, c: GeneratedDramaCharacter) -> bool:
-    return any(_locate(text, n, nearest_to_end=False) >= 0 for n in c.names)
+    return any(_locate(text, n, nearest_to_end=False) >= 0 for n in _names(c))
 
 
 def _find_name(
@@ -268,7 +291,7 @@ def _find_name(
     best_key: str | None = None
     best_pos: int | None = None
     for c in characters:
-        for name in c.names:
+        for name in _names(c):
             pos = _locate(text, name, nearest_to_end=nearest_to_end)
             if pos < 0:
                 continue
@@ -382,9 +405,39 @@ def _strip_name_tag(narration: str, characters: list[GeneratedDramaCharacter]) -
     en = language.current() == "en"
     for c in characters:
         # 英語は ``Haku:`` を ``HAKU:`` と書いてくることがあるので大小を無視する。
-        if core in c.names or (en and core.casefold() in {n.casefold() for n in c.names}):
+        if core in _names(c) or (en and core.casefold() in {n.casefold() for n in c.names}):
             return ""
     return narration
+
+
+# 台本形式の行頭 ``名前：`` 。``エレノア（小声で）：`` のように名前に添え書きが付くこともある。
+_SCRIPT_TAG_RE = re.compile(r"^([^：:「」（）()]{1,24}?)\s*(?:[（(][^）)]*[）)])?\s*[：:]\s*(.*)$")
+_LEADING_DIRECTION_RE = re.compile(r"^(?:[（(][^）)]*[）)]\s*)+")
+
+
+def _script_line(
+    para: str, characters: list[GeneratedDramaCharacter]
+) -> tuple[str, str, str] | None:
+    """``名前：セリフ`` の行（「」なし）を ``(key, 冒頭のト書き, セリフ)`` に割る。
+
+    プロンプトでは ``名前：「セリフ」`` を頼んでいるが、小型モデル（gemma4:e2b など）は
+    「」を付けずに ``エレノア：静かですわね。`` と書いてくることがある。そのままだと
+    行全体が地の文になり、全部ナレーター読みになる。名前が登場人物と一致する行だけを拾い、
+    「」が付いた行は従来どおり :func:`_split_quotes` 側で扱う（日本語版のみ）。
+    """
+    if language.current() == "en" or _OPEN in para:
+        return None
+    m = _SCRIPT_TAG_RE.match(para)
+    if not m:
+        return None
+    head = m.group(1).strip()
+    key = next((c.key for c in characters if head in _names(c)), None)
+    if key is None:
+        return None
+    rest = m.group(2).strip()
+    lead = _LEADING_DIRECTION_RE.match(rest)
+    direction = lead.group(0).strip() if lead else ""
+    return key, direction, rest[len(lead.group(0)) :].strip() if lead else rest
 
 
 def _pack(
@@ -457,6 +510,15 @@ def split_scene(
     segments: list[tuple[str, str | None, bool, bool]] = []
     for para in paragraphs:
         if not para:
+            continue
+        script = _script_line(para, characters) if characters else None
+        if script is not None:
+            key, direction, line = script
+            # 「エレノア：（息を呑む音）」の括弧書きはト書きなので地の文として読む。
+            if direction:
+                segments.append((direction, None, False, _is_onomatopoeia(direction)))
+            if line:
+                segments.append((line, key if dialogue_by_character else None, True, False))
             continue
         pieces = _split_quotes(para)
         for i, (piece, is_quote) in enumerate(pieces):
